@@ -1,8 +1,11 @@
 ﻿using Avalonia.Controls;
 using Newtonsoft.Json;
+using ReactiveUI;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using WalletWasabi.Gui.Converters;
@@ -14,8 +17,10 @@ using WalletWasabi.JsonConverters;
 namespace WalletWasabi.Gui
 {
 	[JsonObject(MemberSerialization.OptIn)]
-	public class UiConfig : IConfig
+	public class UiConfig : ReactiveObject, IConfig
 	{
+		private bool? _lurkingWifeMode;
+
 		/// <inheritdoc />
 		public string FilePath { get; private set; }
 
@@ -34,7 +39,17 @@ namespace WalletWasabi.Gui
 
 		[JsonProperty(PropertyName = "FeeDisplayFormat")]
 		public int? FeeDisplayFormat { get; internal set; }
-     
+
+		[JsonProperty(PropertyName = "Autocopy")]
+		public bool? Autocopy { get; internal set; }
+
+		[JsonProperty(PropertyName = "LurkingWifeMode")]
+		public bool? LurkingWifeMode
+		{
+			get => _lurkingWifeMode;
+			set => this.RaiseAndSetIfChanged(ref _lurkingWifeMode, value);
+		}
+
 		public UiConfig()
 		{
 		}
@@ -44,13 +59,15 @@ namespace WalletWasabi.Gui
 			SetFilePath(filePath);
 		}
 
-		public UiConfig(WindowState windowState, double height, double width, int feeTarget,int feeDisplayFormat)
+		public UiConfig(WindowState windowState, double height, double width, int feeTarget, int feeDisplayFormat, bool autocopy, bool lurkingWifeMode)
 		{
 			WindowState = Guard.NotNull(nameof(windowState), windowState);
 			Height = Guard.NotNull(nameof(height), height);
 			Width = Guard.NotNull(nameof(width), width);
 			FeeTarget = Guard.NotNull(nameof(feeTarget), feeTarget);
 			FeeDisplayFormat = Guard.NotNull(nameof(feeDisplayFormat), feeDisplayFormat);
+			Autocopy = Guard.NotNull(nameof(autocopy), autocopy);
+			LurkingWifeMode = Guard.NotNull(nameof(lurkingWifeMode), lurkingWifeMode);
 		}
 
 		/// <inheritdoc />
@@ -74,6 +91,8 @@ namespace WalletWasabi.Gui
 			Width = 1100;
 			FeeTarget = 2;
 			FeeDisplayFormat = 0;
+			Autocopy = true;
+			LurkingWifeMode = false;
 
 			if (!File.Exists(FilePath))
 			{
@@ -97,6 +116,8 @@ namespace WalletWasabi.Gui
 			Width = config.Width ?? Width;
 			FeeTarget = config.FeeTarget ?? FeeTarget;
 			FeeDisplayFormat = config.FeeDisplayFormat ?? FeeDisplayFormat;
+			Autocopy = config.Autocopy ?? Autocopy;
+			LurkingWifeMode = config.LurkingWifeMode ?? LurkingWifeMode;
 		}
 
 		/// <inheritdoc />
@@ -133,6 +154,16 @@ namespace WalletWasabi.Gui
 			}
 
 			if (FeeDisplayFormat != config.FeeDisplayFormat)
+			{
+				return true;
+			}
+
+			if (Autocopy != config.Autocopy)
+			{
+				return true;
+			}
+
+			if (LurkingWifeMode != config.LurkingWifeMode)
 			{
 				return true;
 			}

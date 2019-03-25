@@ -1,8 +1,8 @@
 ﻿using ReactiveUI;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using WalletWasabi.Gui.ViewModels;
-using System;
 
 namespace WalletWasabi.Gui.Tabs.WalletManager
 {
@@ -18,7 +18,8 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 			{
 				new GenerateWalletViewModel(this),
 				new RecoverWalletViewModel(this),
-				new LoadWalletViewModel(this)
+				new LoadWalletViewModel(this, false),
+				new LoadWalletViewModel(this, true)
 			};
 
 			SelectedCategory = Categories.FirstOrDefault();
@@ -33,14 +34,14 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 
 		public ObservableCollection<CategoryViewModel> Categories
 		{
-			get { return _categories; }
-			set { this.RaiseAndSetIfChanged(ref _categories, value); }
+			get => _categories;
+			set => this.RaiseAndSetIfChanged(ref _categories, value);
 		}
 
 		public CategoryViewModel SelectedCategory
 		{
-			get { return _selectedCategory; }
-			set { this.RaiseAndSetIfChanged(ref _selectedCategory, value); }
+			get => _selectedCategory;
+			set => this.RaiseAndSetIfChanged(ref _selectedCategory, value);
 		}
 
 		public void SelectGenerateWallet()
@@ -55,13 +56,18 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 
 		public void SelectLoadWallet()
 		{
-			SelectedCategory = Categories.First(x => x is LoadWalletViewModel);
+			SelectedCategory = Categories.First(x => x is LoadWalletViewModel && !((LoadWalletViewModel)x).RequirePassword);
+		}
+
+		public void SelectTestPassword()
+		{
+			SelectedCategory = Categories.First(x => x is LoadWalletViewModel && ((LoadWalletViewModel)x).RequirePassword);
 		}
 
 		public ViewModelBase CurrentView
 		{
-			get { return _currentView; }
-			set { this.RaiseAndSetIfChanged(ref _currentView, value); }
+			get => _currentView;
+			set => this.RaiseAndSetIfChanged(ref _currentView, value);
 		}
 	}
 }

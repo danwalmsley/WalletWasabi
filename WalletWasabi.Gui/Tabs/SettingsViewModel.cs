@@ -1,13 +1,13 @@
-﻿using WalletWasabi.Gui.ViewModels;
+﻿using Avalonia.Threading;
 using ReactiveUI;
-using Avalonia;
 using System;
 using System.Collections.Generic;
-using Avalonia.Threading;
-using WalletWasabi.Gui.ViewModels.Validation;
+using System.IO;
 using System.Net;
-using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Reactive.Disposables;
+using WalletWasabi.Gui.ViewModels;
+using WalletWasabi.Gui.ViewModels.Validation;
 
 namespace WalletWasabi.Gui.Tabs
 {
@@ -16,24 +16,86 @@ namespace WalletWasabi.Gui.Tabs
 		private string _network;
 		private string _torHost;
 		private string _torPort;
+		private bool _autocopy;
+		private string _autocopyText;
+		private bool _useTor;
+		private string _useTorText;
 		private bool _isModified;
+		private CompositeDisposable _disposables;
+
+		public ReactiveCommand OpenConfigFileCommand { get; }
+		public ReactiveCommand LurkingWifeModeCommand { get; }
 
 		public SettingsViewModel() : base("Settings")
 		{
 			var config = new Config(Global.Config.FilePath);
+			Autocopy = (bool)Global.UiConfig.Autocopy;
 
-			this.WhenAnyValue(x => x.Network, x => x.TorHost, x => x.TorPort).Subscribe(x => Save());
+			this.WhenAnyValue(x => x.Network, x => x.TorHost, x => x.TorPort, x => x.UseTor).Subscribe(x => Save());
 
-			Dispatcher.UIThread.Post(async () =>
+			this.WhenAnyValue(x => x.Autocopy).Subscribe(x =>
+			{
+				Dispatcher.UIThread.PostLogException(async () =>
+				{
+					Global.UiConfig.Autocopy = x;
+					await Global.UiConfig.ToFileAsync();
+
+					AutocopyText = x ? "On" : "Off";
+				});
+			});
+
+			this.WhenAnyValue(x => x.UseTor).Subscribe(x =>
+			{
+				UseTorText = x ? "On" : "Off";
+			});
+
+			Dispatcher.UIThread.PostLogException(async () =>
 			{
 				await config.LoadFileAsync();
 
 				Network = config.Network.ToString();
 				TorHost = config.TorHost;
 				TorPort = config.TorSocks5Port.ToString();
+				UseTor = config.UseTor.Value;
 
 				IsModified = await Global.Config.CheckFileChangeAsync();
 			});
+
+			OpenConfigFileCommand = ReactiveCommand.Create(OpenConfigFile);
+
+			LurkingWifeModeCommand = ReactiveCommand.CreateFromTask(async () =>
+			{
+				Global.UiConfig.LurkingWifeMode = !LurkingWifeMode;
+				await Global.UiConfig.ToFileAsync();
+			});
+
+		}
+
+		public override void OnOpen()
+		{
+
+			if (_disposables != null)
+			{
+				throw new Exception("Settings was opened before it was closed.");
+			}
+
+			_disposables = new CompositeDisposable();
+
+			Global.UiConfig.WhenAnyValue(x => x.LurkingWifeMode).Subscribe(_ =>
+			{
+				this.RaisePropertyChanged(nameof(LurkingWifeMode));
+				this.RaisePropertyChanged(nameof(LurkingWifeModeText));
+			}).DisposeWith(_disposables);
+
+			base.OnOpen();
+		}
+
+		public override bool OnClose()
+		{
+			_disposables.Dispose();
+			_disposables = null;
+
+			return base.OnClose();
 		}
 
 		public IEnumerable<string> Networks
@@ -50,29 +112,57 @@ namespace WalletWasabi.Gui.Tabs
 
 		public string Network
 		{
-			get { return _network; }
-			set { this.RaiseAndSetIfChanged(ref _network, value); }
+			get => _network;
+			set => this.RaiseAndSetIfChanged(ref _network, value);
 		}
 
 		[ValidateMethod(nameof(ValidateTorHost))]
 		public string TorHost
 		{
-			get { return _torHost; }
-			set { this.RaiseAndSetIfChanged(ref _torHost, value); }
+			get => _torHost;
+			set => this.RaiseAndSetIfChanged(ref _torHost, value);
 		}
 
 		[ValidateMethod(nameof(ValidateTorPort))]
 		public string TorPort
 		{
-			get { return _torPort; }
-			set { this.RaiseAndSetIfChanged(ref _torPort, value); }
+			get => _torPort;
+			set => this.RaiseAndSetIfChanged(ref _torPort, value);
 		}
 
 		public bool IsModified
 		{
-			get { return _isModified; }
-			set { this.RaiseAndSetIfChanged(ref _isModified, value); }
+			get => _isModified;
+			set => this.RaiseAndSetIfChanged(ref _isModified, value);
 		}
+
+		public bool Autocopy
+		{
+			get => _autocopy;
+			set => this.RaiseAndSetIfChanged(ref _autocopy, value);
+		}
+
+		public string AutocopyText
+		{
+			get => _autocopyText;
+			set => this.RaiseAndSetIfChanged(ref _autocopyText, value);
+		}
+
+		public bool UseTor
+		{
+			get => _useTor;
+			set => this.RaiseAndSetIfChanged(ref _useTor, value);
+		}
+
+		public string UseTorText
+		{
+			get => _useTorText;
+			set => this.RaiseAndSetIfChanged(ref _useTorText, value);
+		}
+
+		public bool LurkingWifeMode => Global.UiConfig.LurkingWifeMode == true;
+
+		public string LurkingWifeModeText => Global.UiConfig.LurkingWifeMode == true ? "On" : "Off";
 
 		private void Save()
 		{
@@ -83,19 +173,21 @@ namespace WalletWasabi.Gui.Tabs
 
 			var config = new Config(Global.Config.FilePath);
 
-			Dispatcher.UIThread.Post(async () =>
+			Dispatcher.UIThread.PostLogException(async () =>
 			{
 				await config.LoadFileAsync();
 
 				var network = NBitcoin.Network.GetNetwork(Network);
 				var torHost = TorHost;
 				var torSocks5Port = int.TryParse(TorPort, out var port) ? (int?)port : null;
+				var useTor = UseTor;
 
-				if (config.Network != network || config.TorHost != torHost || config.TorSocks5Port != torSocks5Port)
+				if (config.Network != network || config.TorHost != torHost || config.TorSocks5Port != torSocks5Port || config.UseTor != useTor)
 				{
 					config.Network = network;
 					config.TorHost = torHost;
 					config.TorSocks5Port = torSocks5Port;
+					config.UseTor = useTor;
 
 					await config.ToFileAsync();
 
@@ -142,6 +234,11 @@ namespace WalletWasabi.Gui.Tabs
 			}
 
 			return "Invalid port.";
+		}
+
+		private void OpenConfigFile()
+		{
+			IoHelpers.OpenFileInTextEditor(Global.Config.FilePath);
 		}
 	}
 }

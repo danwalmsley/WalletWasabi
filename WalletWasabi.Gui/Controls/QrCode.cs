@@ -35,15 +35,15 @@ namespace WalletWasabi.Gui.Controls
 		[Content]
 		public bool[,] Matrix
 		{
-			get { return _matrix; }
-			set { SetAndRaise(MatrixProperty, ref _matrix, value); }
+			get => _matrix;
+			set => SetAndRaise(MatrixProperty, ref _matrix, value);
 		}
 
 		public override void Render(DrawingContext context)
 		{
 			var source = Matrix;
 
-			if (!(source is null))
+			if (source != null)
 			{
 				var h = source.GetUpperBound(0);
 				var w = source.GetUpperBound(1);

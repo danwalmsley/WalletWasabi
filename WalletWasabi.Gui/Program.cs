@@ -1,5 +1,5 @@
 ﻿using Avalonia;
-using Avalonia.Gtk3;
+using Avalonia.Threading;
 using AvalonStudio.Shell;
 using AvalonStudio.Shell.Extensibility.Platforms;
 using NBitcoin;
@@ -7,6 +7,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using WalletWasabi.Gui.CommandLine;
 using WalletWasabi.Gui.ViewModels;
 using WalletWasabi.Logging;
 
@@ -19,26 +20,24 @@ namespace WalletWasabi.Gui
 		private static async Task Main(string[] args)
 #pragma warning restore IDE1006 // Naming Styles
 		{
-			Logger.InitializeDefaults(Path.Combine(Global.DataDir, "Logs.txt"));
 			StatusBarViewModel statusBar = null;
 			try
 			{
 				Platform.BaseDirectory = Path.Combine(Global.DataDir, "Gui");
 				AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 				TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
+				if (!await Daemon.RunAsyncReturnTrueIfContinueWithGuiAsync(args))
+				{
+					return;
+				}
 				BuildAvaloniaApp()
 					.BeforeStarting(async builder =>
 					{
 						MainWindowViewModel.Instance = new MainWindowViewModel();
 
-						var configFilePath = Path.Combine(Global.DataDir, "Config.json");
-						var config = new Config(configFilePath);
-						await config.LoadOrCreateDefaultFileAsync();
-						Logger.LogInfo<Config>("Config is successfully initialized.");
+						await Global.InitializeNoUiAsync();
 
-						Global.InitializeConfig(config);
-
-						Global.InitializeNoWallet();
 						statusBar = new StatusBarViewModel(Global.Nodes.ConnectedNodes, Global.Synchronizer, Global.UpdateChecker);
 
 						MainWindowViewModel.Instance.StatusBar = statusBar;
@@ -47,6 +46,11 @@ namespace WalletWasabi.Gui
 						{
 							MainWindowViewModel.Instance.Title += $" - {Global.Synchronizer.Network}";
 						}
+
+						Dispatcher.UIThread.Post(() =>
+						{
+							GC.Collect();
+						});
 					}).StartShellApp<AppBuilder, MainWindow>("Wasabi Wallet", null, () => MainWindowViewModel.Instance);
 			}
 			catch (Exception ex)
@@ -56,7 +60,6 @@ namespace WalletWasabi.Gui
 			}
 			finally
 			{
-				MainWindowViewModel.Instance?.Dispose();
 				statusBar?.Dispose();
 				await Global.DisposeAsync();
 				AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
@@ -81,17 +84,10 @@ namespace WalletWasabi.Gui
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				result
-					.UseWin32()
-					.UseDirect2D1();
+					.UseWin32(true, true)
+					.UseSkia();
 			}
-			else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-			{
-				result.UseGtk3(new Gtk3PlatformOptions
-				{
-					UseDeferredRendering = true,
-					UseGpuAcceleration = true
-				}).UseSkia();
-			}
+			else
 			{
 				result.UsePlatformDetect();
 			}

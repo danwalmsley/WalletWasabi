@@ -5,14 +5,24 @@
 
 # Windows
 
-Check out this [video guide](https://www.youtube.com/watch?v=tkaaC8yET1o) or take a look at the instructions below:
+## Video Guides
+
+Check out [this](https://www.youtube.com/watch?v=tkaaC8yET1o) or [this](https://www.youtube.com/watch?v=D8U53PFEsVk) video guide or take a look at the instructions below:
 
 ![](https://imgur.com/K2J1WWG.png)
 
 Download the Windows installer (.msi) and follow the instructions.
 Wasabi will be installed to your `C:\Program Files\WasabiWallet\` folder. You will also have an icon in your Start Menu and on your Desktop.  
 
-After first run, a working directory will be created: `%appdata%\WalletWasabi\`. Amongst others, here is where your wallet files and your logs reside.
+After first run, a working directory will be created: `%appdata%\WalletWasabi\`. Among others, here is where your wallet files and your logs reside.
+
+# Debian/Ubuntu Based Linux
+
+Check out [Max's video tutorial](https://www.youtube.com/watch?v=DUc9A76rwX4) or follow the instructions:
+
+After downloading the `.deb` package install it by running double clicking on it or running `sudo dpkg -i Wasabi-1.1.3.deb`.
+
+After first run, a working directory will be created: `~/.walletwasabi/`. Among others, here is where your wallet files and your logs reside.
 
 # Linux
 
@@ -20,10 +30,10 @@ Check out this short, to-the-point [video guide](https://www.youtube.com/watch?v
 
 ![](https://imgur.com/wsJ66Qt.png)
 
-Download the Linux archive and extract it, while keeping the file permissions: `tar -pxzf WasabiLinux-1.1.0.tar.gz`.
+Download the Linux archive and extract it, while keeping the file permissions: `tar -pxzf WasabiLinux-1.1.3.tar.gz`.
 You can run Wasabi by executing `./wassabee`.
 
-After first run, a working directory will be created: `~/.walletwasabi/`. Amongst others, here is where your wallet files and your logs reside.
+After first run, a working directory will be created: `~/.walletwasabi/`. Among others, here is where your wallet files and your logs reside.
 
 # OSX
 
@@ -60,3 +70,5 @@ Example: `gpg --verify WasabiInstaller.msi.asc WasabiInstaller.msi`.
 If the message returned says Good signature and that it was signed by `Ficsór Ádám` with a Primary key fingerprint: `21D7 CA45 565D BCCE BE45  115D B4B7 2266 C47E 075E`, then the software wasn't tampered with since the developer signed it.
  
 Remember to check again the PGP signature every time you make a new download.
+
+If you trust nopara73's key and you are faimiliar with the [Web Of Trust](https://security.stackexchange.com/questions/147447/gpg-why-is-my-trusted-key-not-certified-with-a-trusted-signature), please consider also [validating it](https://www.gnupg.org/gph/en/manual/x334.html).

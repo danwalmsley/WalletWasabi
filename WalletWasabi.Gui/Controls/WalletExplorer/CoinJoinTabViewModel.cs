@@ -1,31 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Reactive.Disposables;
-using System.Text;
-using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Threading;
-using AvalonStudio.Commands;
+﻿using Avalonia.Threading;
 using NBitcoin;
 using ReactiveUI;
-using ReactiveUI.Legacy;
-using WalletWasabi.Gui.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using WalletWasabi.Gui.ViewModels;
 using WalletWasabi.Helpers;
 using WalletWasabi.Logging;
-using WalletWasabi.Models;
 using WalletWasabi.Models.ChaumianCoinJoin;
 using static WalletWasabi.Gui.Models.ShieldLevelHelper;
-using static WalletWasabi.Models.ServiceConfiguration;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
-	public class CoinJoinTabViewModel : WalletActionViewModel, IDisposable
+	public class CoinJoinTabViewModel : WalletActionViewModel
 	{
-		private CoinListViewModel _coinsList;
 		private long _roundId;
 		private int _successfulRoundCount;
 		private CcjRoundPhase _phase;
@@ -44,83 +36,31 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		private string _dequeueButtonText;
 		private const string DequeueButtonTextString = "Dequeue Selected Coins";
 		private const string DequeuingButtonTextString = "Dequeuing coins...";
-		private CompositeDisposable Disposables { get; }
+		private int _coinJoinUntilAnonimitySet;
+		private TargetPrivacy _targetPrivacy;
+		private CompositeDisposable _disposables;
 
 		public CoinJoinTabViewModel(WalletViewModel walletViewModel)
 			: base("CoinJoin", walletViewModel)
 		{
-			Disposables = new CompositeDisposable();
 			Password = "";
-			TargetPrivacy = GetTargetPrivacy(Global.Config.MixUntilAnonymitySet);
 
-			var registrableRound = Global.ChaumianClient.State.GetRegistrableRoundOrDefault();
+			CoinsList = new CoinListViewModel();
 
-			UpdateRequiredBtcLabel(registrableRound);
+			Observable.FromEventPattern(CoinsList, nameof(CoinsList.DequeueCoinsPressed)).Subscribe(_ => OnCoinsListDequeueCoinsPressedAsync());
 
-			if (registrableRound != default)
-			{
-				CoordinatorFeePercent = registrableRound.State.CoordinatorFeePercent.ToString();
-			}
-			else
-			{
-				CoordinatorFeePercent = "0.003";
-			}
+			AmountQueued = Money.Zero; // Global.ChaumianClient.State.SumAllQueuedCoinAmounts();
 
-			if (!(registrableRound?.State?.Denomination is null) && registrableRound.State.Denomination != Money.Zero)
-			{
-				CoinsList = new CoinListViewModel();
-			}
-			else
-			{
-				CoinsList = new CoinListViewModel();
-			}
+			EnqueueCommand = ReactiveCommand.Create(async () => await DoEnqueueAsync(CoinsList.Coins.Where(c => c.IsSelected)));
 
-			AmountQueued = Money.Zero;// Global.ChaumianClient.State.SumAllQueuedCoinAmounts();
+			DequeueCommand = ReactiveCommand.Create(async () => await DoDequeueAsync(CoinsList.Coins.Where(c => c.IsSelected)));
 
-			Global.ChaumianClient.CoinQueued += ChaumianClient_CoinQueued;
-			Global.ChaumianClient.CoinDequeued += ChaumianClient_CoinDequeued;
+			PrivacySomeCommand = ReactiveCommand.Create(() => TargetPrivacy = TargetPrivacy.Some);
 
-			var mostAdvancedRound = Global.ChaumianClient.State.GetMostAdvancedRoundOrDefault();
-			if (mostAdvancedRound != default)
-			{
-				RoundId = mostAdvancedRound.State.RoundId;
-				SuccessfulRoundCount = mostAdvancedRound.State.SuccessfulRoundCount;
-				Phase = mostAdvancedRound.State.Phase;
-				PeersRegistered = mostAdvancedRound.State.RegisteredPeerCount;
-				PeersNeeded = mostAdvancedRound.State.RequiredPeerCount;
-			}
-			else
-			{
-				RoundId = -1;
-				SuccessfulRoundCount = -1;
-				Phase = CcjRoundPhase.InputRegistration;
-				PeersRegistered = 0;
-				PeersNeeded = 100;
-			}
-			Global.ChaumianClient.StateUpdated += ChaumianClient_StateUpdated;
+			PrivacyFineCommand = ReactiveCommand.Create(() => TargetPrivacy = TargetPrivacy.Fine);
 
-			EnqueueCommand = ReactiveCommand.Create(async () =>
-			{
-				await DoEnqueueAsync(CoinsList.Coins.Where(c => c.IsSelected));
-			}).DisposeWith(Disposables);
+			PrivacyStrongCommand = ReactiveCommand.Create(() => TargetPrivacy = TargetPrivacy.Strong);
 
-			DequeueCommand = ReactiveCommand.Create(async () =>
-			{
-				await DoDequeueAsync(CoinsList.Coins.Where(c => c.IsSelected));
-			}).DisposeWith(Disposables);
-
-			PrivacySomeCommand = ReactiveCommand.Create(() =>
-			{
-				TargetPrivacy = TargetPrivacy.Some;
-			}).DisposeWith(Disposables);
-			PrivacyFineCommand = ReactiveCommand.Create(() =>
-			{
-				TargetPrivacy = TargetPrivacy.Fine;
-			}).DisposeWith(Disposables);
-			PrivacyStrongCommand = ReactiveCommand.Create(() =>
-			{
-				TargetPrivacy = TargetPrivacy.Strong;
-			}).DisposeWith(Disposables);
 			TargetButtonCommand = ReactiveCommand.Create(async () =>
 			{
 				switch (TargetPrivacy)
@@ -143,49 +83,99 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 				}
 				Global.Config.MixUntilAnonymitySet = CoinJoinUntilAnonimitySet;
 				await Global.Config.ToFileAsync();
-			}).DisposeWith(Disposables);
+			});
 
 			this.WhenAnyValue(x => x.Password).Subscribe(async x =>
 			{
-				if (x.NotNullAndNotEmpty())
+				try
 				{
-					char lastChar = x.Last();
-					if (lastChar == '\r' || lastChar == '\n') // If the last character is cr or lf then act like it'd be a sign to do the job.
+					if (x.NotNullAndNotEmpty())
 					{
-						Password = x.TrimEnd('\r', '\n');
-						await DoEnqueueAsync(CoinsList.Coins.Where(c => c.IsSelected));
+						char lastChar = x.Last();
+						if (lastChar == '\r' || lastChar == '\n') // If the last character is cr or lf then act like it'd be a sign to do the job.
+						{
+							Password = x.TrimEnd('\r', '\n');
+							await DoEnqueueAsync(CoinsList.Coins.Where(c => c.IsSelected));
+						}
 					}
 				}
-			}).DisposeWith(Disposables);
+				catch (Exception ex)
+				{
+					Logger.LogTrace(ex);
+				}
+			});
 
-			this.WhenAnyValue(x => x.IsEnqueueBusy).Subscribe(busy =>
-			{
-				if (busy)
-				{
-					EnqueueButtonText = EnqueuingButtonTextString;
-				}
-				else
-				{
-					EnqueueButtonText = EnqueueButtonTextString;
-				}
-			}).DisposeWith(Disposables);
+			this.WhenAnyValue(x => x.IsEnqueueBusy)
+				.Select(x => x ? EnqueuingButtonTextString : EnqueueButtonTextString)
+				.Subscribe(text => EnqueueButtonText = text);
 
-			this.WhenAnyValue(x => x.IsDequeueBusy).Subscribe(busy =>
-			{
-				if (busy)
-				{
-					DequeueButtonText = DequeuingButtonTextString;
-				}
-				else
-				{
-					DequeueButtonText = DequeueButtonTextString;
-				}
-			}).DisposeWith(Disposables);
+			this.WhenAnyValue(x => x.IsDequeueBusy)
+				.Select(x => x ? DequeuingButtonTextString : DequeueButtonTextString)
+				.Subscribe(text => DequeueButtonText = text);
 
 			this.WhenAnyValue(x => x.TargetPrivacy).Subscribe(target =>
 			{
 				CoinJoinUntilAnonimitySet = GetTargetLevel(target);
-			}).DisposeWith(Disposables);
+			});
+		}
+
+		public override void OnOpen()
+		{
+			CoinsList.OnOpen();
+
+			if (_disposables != null)
+			{
+				throw new Exception("CoinJoin tab opened before previous closed.");
+			}
+
+			_disposables = new CompositeDisposable();
+
+			TargetPrivacy = GetTargetPrivacy(Global.Config.MixUntilAnonymitySet);
+
+			var registrableRound = Global.ChaumianClient.State.GetRegistrableRoundOrDefault();
+
+			UpdateRequiredBtcLabel(registrableRound);
+
+			CoordinatorFeePercent = registrableRound?.State?.CoordinatorFeePercent.ToString() ?? "0.003";
+
+			Observable.FromEventPattern(Global.ChaumianClient, nameof(Global.ChaumianClient.CoinQueued))
+				.Merge(Observable.FromEventPattern(Global.ChaumianClient, nameof(Global.ChaumianClient.CoinDequeued)))
+				.Merge(Observable.FromEventPattern(Global.ChaumianClient, nameof(Global.ChaumianClient.StateUpdated)))
+				.ObserveOn(RxApp.MainThreadScheduler)
+				.Subscribe(_ => UpdateStates())
+				.DisposeWith(_disposables);
+
+			CcjClientRound mostAdvancedRound = Global.ChaumianClient?.State?.GetMostAdvancedRoundOrDefault();
+
+			if (mostAdvancedRound != default)
+			{
+				RoundId = mostAdvancedRound.State.RoundId;
+				SuccessfulRoundCount = mostAdvancedRound.State.SuccessfulRoundCount;
+				Phase = mostAdvancedRound.State.Phase;
+				PeersRegistered = mostAdvancedRound.State.RegisteredPeerCount;
+				PeersNeeded = mostAdvancedRound.State.RequiredPeerCount;
+			}
+			else
+			{
+				RoundId = -1;
+				SuccessfulRoundCount = -1;
+				Phase = CcjRoundPhase.InputRegistration;
+				PeersRegistered = 0;
+				PeersNeeded = 100;
+			}
+
+			base.OnOpen();
+		}
+
+		public override bool OnClose()
+		{
+			CoinsList.OnClose();
+
+			_disposables.Dispose();
+
+			_disposables = null;
+
+			return base.OnClose();
 		}
 
 		private async Task DoDequeueAsync(IEnumerable<CoinViewModel> selectedCoins)
@@ -268,21 +258,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			}
 		}
 
-		private void ChaumianClient_CoinDequeued(object sender, SmartCoin e)
-		{
-			UpdateStates();
-		}
-
-		private void ChaumianClient_CoinQueued(object sender, SmartCoin e)
-		{
-			UpdateStates();
-		}
-
-		private void ChaumianClient_StateUpdated(object sender, EventArgs e)
-		{
-			UpdateStates();
-		}
-
 		private void UpdateStates()
 		{
 			AmountQueued = Global.ChaumianClient.State.SumAllQueuedCoinAmounts();
@@ -310,7 +285,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		}
 
 #pragma warning disable CS0618 // Type or member is obsolete
-
 		private void UpdateRequiredBtcLabel(CcjClientRound registrableRound)
 #pragma warning restore CS0618 // Type or member is obsolete
 		{
@@ -335,7 +309,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 				}
 				else
 				{
-					var available = Global.WalletService.Coins.Where(x => x.Confirmed && !x.SpentOrCoinJoinInProgress);
+					var available = Global.WalletService.Coins.Where(x => x.Confirmed && !x.Unavailable);
 					if (available.Any())
 					{
 						RequiredBTC = registrableRound.State.CalculateRequiredAmount(available.Where(x => x.AnonymitySet < Global.Config.PrivacyLevelStrong).Select(x => x.Amount).ToArray());
@@ -362,7 +336,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		{
 			WarningMessage = message;
 
-			Dispatcher.UIThread.Post(async () =>
+			Dispatcher.UIThread.PostLogException(async () =>
 			{
 				await Task.Delay(7000);
 				if (WarningMessage == message)
@@ -378,32 +352,14 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			set => this.RaiseAndSetIfChanged(ref _password, value);
 		}
 
-		public CoinListViewModel CoinsList
-		{
-			get => _coinsList;
-			set
-			{
-				bool changed = _coinsList != value;
-				if (_coinsList != null)
-				{
-					_coinsList.DequeueCoinsPressed -= CoinsList_DequeueCoinsPressedAsync;
-				}
+		public CoinListViewModel CoinsList { get; }
 
-				this.RaiseAndSetIfChanged(ref _coinsList, value);
-
-				if (_coinsList != null)
-				{
-					_coinsList.DequeueCoinsPressed += CoinsList_DequeueCoinsPressedAsync;
-				}
-			}
-		}
-
-		private async void CoinsList_DequeueCoinsPressedAsync()
+		private async void OnCoinsListDequeueCoinsPressedAsync()
 		{
 			try
 			{
-				var selectedCoin = _coinsList?.SelectedCoin;
-				if (selectedCoin == null) return;
+				var selectedCoin = CoinsList.SelectedCoin;
+				if (selectedCoin is null) return;
 				await DoDequeueAsync(new[] { selectedCoin });
 			}
 			catch (Exception ex)
@@ -490,9 +446,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			set => this.RaiseAndSetIfChanged(ref _dequeueButtonText, value);
 		}
 
-		private int _coinJoinUntilAnonimitySet;
-		private TargetPrivacy _targetPrivacy;
-
 		public int CoinJoinUntilAnonimitySet
 		{
 			get => _coinJoinUntilAnonimitySet;
@@ -502,7 +455,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		private TargetPrivacy TargetPrivacy
 		{
 			get => _targetPrivacy;
-
 			set => this.RaiseAndSetIfChanged(ref _targetPrivacy, value);
 		}
 
@@ -514,45 +466,5 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		public ReactiveCommand PrivacyFineCommand { get; }
 		public ReactiveCommand PrivacyStrongCommand { get; }
 		public ReactiveCommand TargetButtonCommand { get; }
-
-		#region IDisposable Support
-
-		private volatile bool _disposedValue = false; // To detect redundant calls
-
-		protected virtual void Dispose(bool disposing)
-		{
-			if (!_disposedValue)
-			{
-				if (disposing)
-				{
-					if (Global.ChaumianClient != null)
-					{
-						Global.ChaumianClient.CoinQueued -= ChaumianClient_CoinQueued;
-						Global.ChaumianClient.CoinDequeued -= ChaumianClient_CoinDequeued;
-						Global.ChaumianClient.StateUpdated -= ChaumianClient_StateUpdated;
-					}
-
-					if (_coinsList != null)
-					{
-						_coinsList.DequeueCoinsPressed -= CoinsList_DequeueCoinsPressedAsync;
-					}
-
-					Disposables?.Dispose();
-					CoinsList?.Dispose();
-				}
-
-				CoinsList = null;
-				_disposedValue = true;
-			}
-		}
-
-		// This code added to correctly implement the disposable pattern.
-		public void Dispose()
-		{
-			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-			Dispose(true);
-		}
-
-		#endregion IDisposable Support
 	}
 }

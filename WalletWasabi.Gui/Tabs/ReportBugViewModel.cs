@@ -1,7 +1,7 @@
-﻿using WalletWasabi.Gui.ViewModels;
+﻿using Avalonia;
 using ReactiveUI;
-using Avalonia;
 using System;
+using WalletWasabi.Gui.ViewModels;
 
 namespace WalletWasabi.Gui.Tabs
 {

@@ -1,14 +1,13 @@
-using System;
-using System.Collections.ObjectModel;
-using System.Composition;
-using System.Linq;
-using System.Reactive.Linq;
-using AvalonStudio.Extensibility;
-using AvalonStudio.Shell;
 using NBitcoin;
 using ReactiveUI;
+using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Reactive.Disposables;
+using System.Reactive.Linq;
 using WalletWasabi.Gui.ViewModels;
-using WalletWasabi.Models;
+using WalletWasabi.Services;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
@@ -18,67 +17,95 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 		private string _title;
 
-		public override string Title
+		private CompositeDisposable _disposables;
+
+		public WalletViewModel(WalletService walletService, bool receiveDominant)
+			: base(Path.GetFileNameWithoutExtension(walletService.KeyManager.FilePath))
 		{
-			get { return _title; }
-			set { this.RaiseAndSetIfChanged(ref _title, value); }
-		}
+			WalletService = walletService;
+			Name = Path.GetFileNameWithoutExtension(WalletService.KeyManager.FilePath);
 
-		public WalletViewModel(string name, bool receiveDominant)
-			: base(name)
-		{
-			var coinsChanged = Observable.FromEventPattern(Global.WalletService.Coins, nameof(Global.WalletService.Coins.CollectionChanged));
-			var coinSpent = Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.CoinSpentOrSpenderConfirmed));
+			SetBalance(Name);
 
-			coinsChanged
-				.Merge(coinSpent)
-				.ObserveOn(RxApp.MainThreadScheduler)
-				.Subscribe(o =>
-				{
-					SetBalance(name);
-				});
+			Actions = new ObservableCollection<WalletActionViewModel>
+			{
+				new SendTabViewModel(this),
+				new ReceiveTabViewModel(this),
+				new CoinJoinTabViewModel(this),
+				new HistoryTabViewModel(this),
+				new WalletInfoViewModel(this)
+			};
 
-			SetBalance(name);
-
+			Actions[0].DisplayActionTab();
 			if (receiveDominant)
 			{
-				_actions = new ObservableCollection<WalletActionViewModel>
-				{
-					new SendTabViewModel(this),
-					new CoinJoinTabViewModel(this),
-					new HistoryTabViewModel(this),
-					new ReceiveTabViewModel(this)
-				};
+				Actions[2].DisplayActionTab();
+				Actions[3].DisplayActionTab();
+				Actions[1].DisplayActionTab();
 			}
 			else
 			{
-				_actions = new ObservableCollection<WalletActionViewModel>
-				{
-					new SendTabViewModel(this),
-					new ReceiveTabViewModel(this),
-					new CoinJoinTabViewModel(this),
-					new HistoryTabViewModel(this)
-				};
+				Actions[1].DisplayActionTab();
+				Actions[2].DisplayActionTab();
+				Actions[3].DisplayActionTab();
 			}
 
-			foreach (var vm in _actions)
+			LurkingWifeModeCommand = ReactiveCommand.CreateFromTask(async () =>
 			{
-				vm.DisplayActionTab();
+				Global.UiConfig.LurkingWifeMode = !Global.UiConfig.LurkingWifeMode;
+				await Global.UiConfig.ToFileAsync();
+			});
+		}
+
+		public void OnWalletOpened()
+		{
+			if (_disposables != null)
+			{
+				throw new Exception("Wallet opened before it was closed.");
 			}
+
+			_disposables = new CompositeDisposable();
+
+			Observable.FromEventPattern(Global.WalletService.Coins, nameof(Global.WalletService.Coins.CollectionChanged))
+				.Merge(Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.CoinSpentOrSpenderConfirmed)))
+				.ObserveOn(RxApp.MainThreadScheduler)
+				.Subscribe(o => SetBalance(Name))
+				.DisposeWith(_disposables);
+
+			Global.UiConfig.WhenAnyValue(x => x.LurkingWifeMode).Subscribe(x =>
+			{
+				SetBalance(Name);
+			}).DisposeWith(_disposables);
+		}
+
+		public void OnWalletClosed()
+		{
+			_disposables?.Dispose();
 		}
 
 		public string Name { get; }
 
+		public WalletService WalletService { get; }
+
+		public override string Title
+		{
+			get => _title;
+			set => this.RaiseAndSetIfChanged(ref _title, value);
+		}
+
+		public ReactiveCommand LurkingWifeModeCommand { get; }
+
 		public ObservableCollection<WalletActionViewModel> Actions
 		{
-			get { return _actions; }
-			set { this.RaiseAndSetIfChanged(ref _actions, value); }
+			get => _actions;
+			set => this.RaiseAndSetIfChanged(ref _actions, value);
 		}
 
 		private void SetBalance(string walletName)
 		{
-			Money balance = Enumerable.Where(Global.WalletService.Coins, c => c.Unspent).Sum(c => (long?)c.Amount) ?? 0;
-			Title = $"{walletName} ({balance.ToString(false, true)} BTC)";
+			Money balance = Enumerable.Where(WalletService.Coins, c => c.Unspent && !c.IsDust && !c.SpentAccordingToBackend).Sum(c => (long?)c.Amount) ?? 0;
+
+			Title = $"{walletName} ({(Global.UiConfig.LurkingWifeMode.Value ? "#########" : balance.ToString(false, true))} BTC)";
 		}
 	}
 }

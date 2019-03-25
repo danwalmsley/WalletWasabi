@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using ReactiveUI;
 using System;
@@ -7,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using WalletWasabi.Gui.Tabs.WalletManager;
 using WalletWasabi.Gui.ViewModels;
@@ -15,43 +15,38 @@ using WalletWasabi.KeyManagement;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
-	public class ReceiveTabViewModel : WalletActionViewModel, IDisposable
+	public class ReceiveTabViewModel : WalletActionViewModel
 	{
 		private ObservableCollection<AddressViewModel> _addresses;
 		private AddressViewModel _selectedAddress;
 		private string _label;
 		private double _labelRequiredNotificationOpacity;
 		private bool _labelRequiredNotificationVisible;
-		private double _clipboardNotificationOpacity;
-		private bool _clipboardNotificationVisible;
 		private int _caretIndex;
 		private ObservableCollection<SuggestionViewModel> _suggestions;
-		private CompositeDisposable Disposables { get; }
+		private CompositeDisposable _disposables;
+
+		public ReactiveCommand CopyAddress { get; }
+		public ReactiveCommand CopyLabel { get; }
+		public ReactiveCommand ShowQrCode { get; }
 
 		public ReceiveTabViewModel(WalletViewModel walletViewModel)
 			: base("Receive", walletViewModel)
 		{
-			Disposables = new CompositeDisposable();
 			_addresses = new ObservableCollection<AddressViewModel>();
 			Label = "";
-
-			Observable.FromEventPattern(Global.WalletService.Coins, nameof(Global.WalletService.Coins.CollectionChanged))
-				.ObserveOn(RxApp.MainThreadScheduler)
-				.Subscribe(o =>
-			{
-				InitializeAddresses();
-			}).DisposeWith(Disposables);
 
 			InitializeAddresses();
 
 			GenerateCommand = ReactiveCommand.Create(() =>
 			{
+				Label = Label.Trim(',', ' ').Trim();
 				if (string.IsNullOrWhiteSpace(Label))
 				{
 					LabelRequiredNotificationVisible = true;
 					LabelRequiredNotificationOpacity = 1;
 
-					Dispatcher.UIThread.Post(async () =>
+					Dispatcher.UIThread.PostLogException(async () =>
 					{
 						await Task.Delay(1000);
 						LabelRequiredNotificationOpacity = 0;
@@ -60,9 +55,9 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 					return;
 				}
 
-				Dispatcher.UIThread.Post(() =>
+				Dispatcher.UIThread.PostLogException(() =>
 				{
-					var label = Label.Trim(',', ' ').Trim();
+					var label = Label;
 					HdPubKey newKey = Global.WalletService.GetReceiveKey(label, Addresses.Select(x => x.Model).Take(7)); // Never touch the first 7 keys.
 
 					AddressViewModel found = Addresses.FirstOrDefault(x => x.Model == newKey);
@@ -79,36 +74,88 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 					Label = "";
 				});
-			}).DisposeWith(Disposables);
+			});
 
-			this.WhenAnyValue(x => x.Label).Subscribe(x => UpdateSuggestions(x)).DisposeWith(Disposables);
+			this.WhenAnyValue(x => x.Label).Subscribe(x => UpdateSuggestions(x));
 
 			this.WhenAnyValue(x => x.SelectedAddress).Subscribe(address =>
 			{
-				if (!(address is null))
+				if (Global.UiConfig.Autocopy is true)
 				{
-					address.CopyToClipboard();
-					ClipboardNotificationVisible = true;
-					ClipboardNotificationOpacity = 1;
-
-					Dispatcher.UIThread.Post(async () =>
-					{
-						await Task.Delay(1000);
-						ClipboardNotificationOpacity = 0;
-					});
+					address?.CopyToClipboard();
 				}
-			}).DisposeWith(Disposables);
+			});
 
 			this.WhenAnyValue(x => x.CaretIndex).Subscribe(_ =>
 			{
-				if (Label == null) return;
+				if (Label is null) return;
 				if (CaretIndex != Label.Length)
 				{
 					CaretIndex = Label.Length;
 				}
-			}).DisposeWith(Disposables);
+			});
+
+			var isCoinListItemSelected = this.WhenAnyValue(x => x.SelectedAddress).Select(coin => coin != null);
+
+			CopyAddress = ReactiveCommand.Create(() =>
+			{
+				try
+				{
+					SelectedAddress?.CopyToClipboard();
+				}
+				catch (Exception)
+				{ }
+			}, isCoinListItemSelected);
+
+			CopyLabel = ReactiveCommand.CreateFromTask(async () =>
+			{
+				try
+				{
+					await ((IClipboard)AvaloniaLocator.Current.GetService(typeof(IClipboard)))
+						.SetTextAsync(SelectedAddress.Label ?? string.Empty);
+				}
+				catch (Exception)
+				{ }
+			}, isCoinListItemSelected);
+
+			ShowQrCode = ReactiveCommand.Create(() =>
+			{
+				try
+				{
+					SelectedAddress.IsExpanded = true;
+				}
+				catch (Exception)
+				{ }
+			}, isCoinListItemSelected);
 
 			_suggestions = new ObservableCollection<SuggestionViewModel>();
+		}
+
+		public override void OnOpen()
+		{
+			base.OnOpen();
+
+			if (_disposables != null)
+			{
+				throw new Exception("Receive tab opened before last one was closed.");
+			}
+
+			_disposables = new CompositeDisposable();
+
+			Observable.FromEventPattern(Global.WalletService.Coins,
+				nameof(Global.WalletService.Coins.CollectionChanged))
+				.ObserveOn(RxApp.MainThreadScheduler)
+				.Subscribe(o => InitializeAddresses())
+				.DisposeWith(_disposables);
+		}
+
+		public override bool OnClose()
+		{
+			_disposables.Dispose();
+
+			_disposables = null;
+
+			return base.OnClose();
 		}
 
 		private void InitializeAddresses()
@@ -116,8 +163,8 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			_addresses?.Clear();
 
 			foreach (HdPubKey key in Global.WalletService.KeyManager.GetKeys(x =>
-																		x.HasLabel()
-																		&& !x.IsInternal()
+																		x.HasLabel
+																		&& !x.IsInternal
 																		&& x.KeyState == KeyState.Clean)
 																	.Reverse())
 			{
@@ -155,18 +202,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			set => this.RaiseAndSetIfChanged(ref _labelRequiredNotificationVisible, value);
 		}
 
-		public double ClipboardNotificationOpacity
-		{
-			get => _clipboardNotificationOpacity;
-			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationOpacity, value);
-		}
-
-		public bool ClipboardNotificationVisible
-		{
-			get => _clipboardNotificationVisible;
-			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationVisible, value);
-		}
-
 		public int CaretIndex
 		{
 			get => _caretIndex;
@@ -188,17 +223,17 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			}
 
 			var enteredWordList = words.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim());
-			var lastWorld = enteredWordList.LastOrDefault().Replace("\t", "");
+			var lastWord = enteredWordList?.LastOrDefault()?.Replace("\t", "") ?? "";
 
-			if (lastWorld.Length < 1)
+			if (!lastWord.Any())
 			{
 				Suggestions.Clear();
 				return;
 			}
 
 			string[] nonSpecialLabels = Global.WalletService.GetNonSpecialLabels().ToArray();
-			IEnumerable<string> suggestedWords = nonSpecialLabels.Where(w => w.StartsWith(lastWorld, StringComparison.InvariantCultureIgnoreCase))
-				.Union(nonSpecialLabels.Where(w => w.Contains(lastWorld, StringComparison.InvariantCultureIgnoreCase)))
+			IEnumerable<string> suggestedWords = nonSpecialLabels.Where(w => w.StartsWith(lastWord, StringComparison.InvariantCultureIgnoreCase))
+				.Union(nonSpecialLabels.Where(w => w.Contains(lastWord, StringComparison.InvariantCultureIgnoreCase)))
 				.Except(enteredWordList)
 				.Take(3);
 
@@ -228,34 +263,5 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		}
 
 		public ReactiveCommand GenerateCommand { get; }
-
-		#region IDisposable Support
-
-		private volatile bool _disposedValue = false; // To detect redundant calls
-
-		protected virtual void Dispose(bool disposing)
-		{
-			if (!_disposedValue)
-			{
-				if (disposing)
-				{
-					Disposables?.Dispose();
-				}
-
-				_addresses = null;
-				_suggestions = null;
-
-				_disposedValue = true;
-			}
-		}
-
-		// This code added to correctly implement the disposable pattern.
-		public void Dispose()
-		{
-			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
-			Dispose(true);
-		}
-
-		#endregion IDisposable Support
 	}
 }

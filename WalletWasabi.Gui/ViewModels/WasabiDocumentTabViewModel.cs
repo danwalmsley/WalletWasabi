@@ -27,17 +27,11 @@ namespace WalletWasabi.Gui.ViewModels
 
 		public bool IsSelected
 		{
-			get { return _isSelected; }
-			set { this.RaiseAndSetIfChanged(ref _isSelected, value); }
+			get => _isSelected;
+			set => this.RaiseAndSetIfChanged(ref _isSelected, value);
 		}
 
 		public bool IsDirty { get; set; }
-
-		public virtual void Close()
-		{
-			IoC.Get<IShell>().RemoveDocument(this);
-			IsSelected = false;
-		}
 
 		public virtual void OnSelected()
 		{
@@ -49,8 +43,13 @@ namespace WalletWasabi.Gui.ViewModels
 			IsSelected = false;
 		}
 
-		public bool OnClose()
+		public virtual void OnOpen()
 		{
+		}
+
+		public virtual bool OnClose()
+		{
+			IsSelected = false;
 			IoC.Get<IShell>().RemoveDocument(this);
 
 			return true;

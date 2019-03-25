@@ -1,13 +1,12 @@
-﻿using System.Composition;
-using AvalonStudio.Commands;
-using AvalonStudio.Documents;
+﻿using AvalonStudio.Commands;
 using AvalonStudio.Extensibility;
 using AvalonStudio.Shell;
 using ReactiveUI;
+using System.Composition;
 using System.IO;
 using System.Linq;
-using WalletWasabi.Gui.Tabs.WalletManager;
 using WalletWasabi.Gui.Tabs;
+using WalletWasabi.Gui.Tabs.WalletManager;
 
 namespace WalletWasabi.Gui.Shell.Commands
 {
