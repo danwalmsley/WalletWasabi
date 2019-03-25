@@ -24,8 +24,6 @@ namespace WalletWasabi.Services
 	{
 		#region MembersPropertiesEvents
 
-		public SynchronizeResponse LastResponse { get; private set; }
-
 		public WasabiClient WasabiClient { get; private set; }
 
 		public Network Network { get; private set; }
@@ -130,11 +128,6 @@ namespace WalletWasabi.Services
 		}
 
 		public TimeSpan MaxRequestIntervalForMixing { get; set; }
-		private long _blockRequests; // There are priority requests in queue.
-
-		public void BlockRequests() => Interlocked.Exchange(ref _blockRequests, 1);
-
-		public void EnableRequests() => Interlocked.Exchange(ref _blockRequests, 0);
 
 		public string IndexFilePath { get; private set; }
 		private List<FilterModel> Index { get; set; }
@@ -169,13 +162,7 @@ namespace WalletWasabi.Services
 			CreateNew(network, indexFilePath, client);
 		}
 
-		public WasabiSynchronizer(Network network, string indexFilePath, Func<Uri> baseUriAction, IPEndPoint torSocks5EndPoint)
-		{
-			var client = new WasabiClient(baseUriAction, torSocks5EndPoint);
-			CreateNew(network, indexFilePath, client);
-		}
-
-		public WasabiSynchronizer(Network network, string indexFilePath, Uri baseUri, IPEndPoint torSocks5EndPoint)
+		public WasabiSynchronizer(Network network, string indexFilePath, Uri baseUri, IPEndPoint torSocks5EndPoint = null)
 		{
 			var client = new WasabiClient(baseUri, torSocks5EndPoint);
 			CreateNew(network, indexFilePath, client);
@@ -185,7 +172,6 @@ namespace WalletWasabi.Services
 		{
 			Network = Guard.NotNull(nameof(network), network);
 			WasabiClient = Guard.NotNull(nameof(client), client);
-			LastResponse = null;
 			_running = 0;
 			Cancel = new CancellationTokenSource();
 			BestBlockchainHeight = Height.Unknown;
@@ -250,7 +236,6 @@ namespace WalletWasabi.Services
 				{
 					DateTimeOffset lastFeeQueried = DateTimeOffset.UtcNow - feeQueryRequestInterval;
 					bool ignoreRequestInterval = false;
-					EnableRequests();
 					while (IsRunning)
 					{
 						try
@@ -259,11 +244,6 @@ namespace WalletWasabi.Services
 							if (!IsRunning)
 							{
 								return;
-							}
-
-							while (Interlocked.Read(ref _blockRequests) == 1)
-							{
-								await Task.Delay(3000, Cancel.Token);
 							}
 
 							EstimateSmartFeeMode? estimateMode = null;
@@ -388,7 +368,6 @@ namespace WalletWasabi.Services
 								// We are syced.
 							}
 
-							LastResponse = response;
 							ResponseArrived?.Invoke(this, response);
 						}
 						catch (Exception ex)

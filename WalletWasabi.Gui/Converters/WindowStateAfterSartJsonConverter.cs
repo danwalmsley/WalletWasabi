@@ -20,7 +20,7 @@ namespace WalletWasabi.Gui.Converters
 			try
 			{
 				// If minimized, then go with Maximized, because at start it shouldn't run with minimized.
-				if (reader.Value is null)
+				if (reader.Value == null)
 				{
 					return WindowState.Maximized;
 				}

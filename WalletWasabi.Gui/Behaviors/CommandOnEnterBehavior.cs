@@ -5,15 +5,15 @@ namespace WalletWasabi.Gui.Behaviors
 {
 	public class CommandOnEnterBehavior : CommandBasedBehavior<TextBox>
 	{
-		private CompositeDisposable Disposables { get; set; }
+		private CompositeDisposable _disposables;
 
 		protected override void OnAttached()
 		{
-			Disposables = new CompositeDisposable();
+			_disposables = new CompositeDisposable();
 
 			base.OnAttached();
 
-			Disposables.Add(AssociatedObject.AddHandler(TextBox.KeyDownEvent, (sender, e) =>
+			_disposables.Add(AssociatedObject.AddHandler(TextBox.KeyDownEvent, (sender, e) =>
 			{
 				if (e.Key == Avalonia.Input.Key.Enter)
 				{
@@ -26,7 +26,7 @@ namespace WalletWasabi.Gui.Behaviors
 		{
 			base.OnDetaching();
 
-			Disposables.Dispose();
+			_disposables.Dispose();
 		}
 	}
 }

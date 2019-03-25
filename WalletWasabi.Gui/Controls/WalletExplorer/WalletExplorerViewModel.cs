@@ -1,13 +1,14 @@
 ﻿using AvalonStudio.Extensibility;
 using AvalonStudio.MVVM;
-using AvalonStudio.Shell;
-using ReactiveUI;
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Composition;
-using System.IO;
-using System.Linq;
+using System.Text;
+using ReactiveUI;
 using WalletWasabi.Gui.ViewModels;
-using WalletWasabi.Services;
+using System.Linq;
+using AvalonStudio.Shell;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
@@ -22,7 +23,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		public WalletExplorerViewModel()
 		{
 			Title = "Wallet Explorer";
-
+			
 			_wallets = new ObservableCollection<WalletViewModel>();
 		}
 
@@ -30,30 +31,25 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 		public ObservableCollection<WalletViewModel> Wallets
 		{
-			get => _wallets;
-			set => this.RaiseAndSetIfChanged(ref _wallets, value);
+			get { return _wallets; }
+			set { this.RaiseAndSetIfChanged(ref _wallets, value); }
 		}
 
 		private WasabiDocumentTabViewModel _selectedItem;
 
 		public WasabiDocumentTabViewModel SelectedItem
 		{
-			get => _selectedItem;
-			set => this.RaiseAndSetIfChanged(ref _selectedItem, value);
+			get { return _selectedItem; }
+			set { this.RaiseAndSetIfChanged(ref _selectedItem, value); }
 		}
 
-		internal void OpenWallet(WalletService walletService, bool receiveDominant)
+		internal void OpenWallet(string walletName, bool receiveDominant)
 		{
-			var walletName = Path.GetFileNameWithoutExtension(walletService.KeyManager.FilePath);
 			if (_wallets.Any(x => x.Title == walletName))
 				return;
 
-			WalletViewModel walletViewModel = new WalletViewModel(walletService, receiveDominant);
+			WalletViewModel walletViewModel = new WalletViewModel(walletName, receiveDominant);
 			_wallets.Add(walletViewModel);
-			walletViewModel.OnWalletOpened();
-
-			// TODO if we ever implement closing a wallet OnWalletClosed needs to be called
-			// to prevent memory leaks.
 		}
 
 		public void BeforeActivation()

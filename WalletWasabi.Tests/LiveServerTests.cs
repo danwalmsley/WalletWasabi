@@ -37,7 +37,7 @@ namespace WalletWasabi.Tests
 		[InlineData(NetworkType.Testnet)]
 		public async Task GetFeesAsync(NetworkType networkType)
 		{
-			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType], SharedFixture.TorSocks5Endpoint))
+			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType]))
 			{
 				var feeEstimationPairs = await client.GetFeesAsync(1000);
 
@@ -50,7 +50,7 @@ namespace WalletWasabi.Tests
 		[InlineData(NetworkType.Testnet)]
 		public async Task GetFiltersAsync(NetworkType networkType)
 		{
-			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType], SharedFixture.TorSocks5Endpoint))
+			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType]))
 			{
 				var filterModel = WasabiSynchronizer.GetStartingFilter(Network.GetNetwork(networkType.ToString()));
 
@@ -66,7 +66,7 @@ namespace WalletWasabi.Tests
 		[InlineData(NetworkType.Testnet)]
 		public async Task GetAllRoundStatesAsync(NetworkType networkType)
 		{
-			using (var client = new SatoshiClient(LiveServerTestsFixture.UriMappings[networkType], SharedFixture.TorSocks5Endpoint))
+			using (var client = new SatoshiClient(LiveServerTestsFixture.UriMappings[networkType]))
 			{
 				var states = await client.GetAllRoundStatesAsync();
 				Assert.True(states.NotNullAndNotEmpty());
@@ -83,7 +83,7 @@ namespace WalletWasabi.Tests
 		[InlineData(NetworkType.Testnet)]
 		public async Task GetExchangeRateAsync(NetworkType networkType) // xunit wtf: If this function is called GetExchangeRatesAsync, it'll stuck on 1 CPU VMs (Manjuro, Fedora)
 		{
-			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType], SharedFixture.TorSocks5Endpoint))
+			using (var client = new WasabiClient(LiveServerTestsFixture.UriMappings[networkType]))
 			{
 				var exchangeRates = await client.GetExchangeRatesAsync();
 

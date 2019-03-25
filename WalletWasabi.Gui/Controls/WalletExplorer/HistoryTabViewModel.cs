@@ -1,90 +1,91 @@
-﻿using NBitcoin;
+﻿using Avalonia;
+using Avalonia.Threading;
+using AvalonStudio.Extensibility;
+using NBitcoin;
 using ReactiveUI;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using WalletWasabi.Logging;
 using WalletWasabi.Models;
+using WalletWasabi.Services;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
-	public class HistoryTabViewModel : WalletActionViewModel
+	public class HistoryTabViewModel : WalletActionViewModel, IDisposable
 	{
 		private ObservableCollection<TransactionViewModel> _transactions;
 		private TransactionViewModel _selectedTransaction;
+		private double _clipboardNotificationOpacity;
+		private bool _clipboardNotificationVisible;
+		private long _disableClipboard;
 		private SortOrder _dateSortDirection;
 		private SortOrder _amountSortDirection;
 		private SortOrder _transactionSortDirection;
-		private CompositeDisposable _disposables;
+		private CompositeDisposable Disposables { get; }
 
 		public ReactiveCommand SortCommand { get; }
 
 		public HistoryTabViewModel(WalletViewModel walletViewModel)
 			: base("History", walletViewModel)
 		{
+			Disposables = new CompositeDisposable();
+			Interlocked.Exchange(ref _disableClipboard, 0);
 			Transactions = new ObservableCollection<TransactionViewModel>();
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+			RewriteTableAsync();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
-			RewriteTableAsync().GetAwaiter();
+			var coinsChanged = Observable.FromEventPattern(Global.WalletService.Coins, nameof(Global.WalletService.Coins.CollectionChanged));
+			var newBlockProcessed = Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.NewBlockProcessed));
+			var coinSpent = Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.CoinSpentOrSpenderConfirmed));
 
-			this.WhenAnyValue(x => x.SelectedTransaction).Subscribe(transaction =>
-			{
-				if (Global.UiConfig.Autocopy is true)
-				{
-					transaction?.CopyToClipboard();
-				}
-			});
-
-			SortCommand = ReactiveCommand.Create(() => RefreshOrdering());
-
-			DateSortDirection = SortOrder.Decreasing;
-		}
-
-		public override void OnOpen()
-		{
-			base.OnOpen();
-
-			if (_disposables != null)
-			{
-				throw new Exception("Histroy Tab was opened before it was closed.");
-			}
-
-			_disposables = new CompositeDisposable();
-
-			Observable.FromEventPattern(Global.WalletService.Coins, nameof(Global.WalletService.Coins.CollectionChanged))
-				.Merge(Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.NewBlockProcessed)))
-				.Merge(Observable.FromEventPattern(Global.WalletService, nameof(Global.WalletService.CoinSpentOrSpenderConfirmed)))
+			coinsChanged
+				.Merge(newBlockProcessed)
+				.Merge(coinSpent)
 				.Throttle(TimeSpan.FromSeconds(5))
 				.ObserveOn(RxApp.MainThreadScheduler)
-				.Subscribe(async _ => await RewriteTableAsync())
-				.DisposeWith(_disposables);
-
-			Global.UiConfig.WhenAnyValue(x => x.LurkingWifeMode).ObserveOn(RxApp.MainThreadScheduler).Subscribe(x =>
-			{
-				foreach(var transaction in Transactions)
+				.Subscribe(_ =>
 				{
-					transaction.Refresh();
-				}
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+					RewriteTableAsync();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+				}).DisposeWith(Disposables);
 
-			}).DisposeWith(_disposables);
-
-			this.WhenAnyValue(x => x.SelectedTransaction).Subscribe(transaction =>
+			this.WhenAnyValue(x => x.SelectedTransaction).Subscribe(async transaction =>
 			{
-				if (Global.UiConfig.Autocopy is true)
+				if (Interlocked.Read(ref _disableClipboard) == 0)
 				{
-					transaction?.CopyToClipboard();
+					if (!(transaction is null))
+					{
+						await Application.Current.Clipboard.SetTextAsync(transaction.TransactionId);
+						ClipboardNotificationVisible = true;
+						ClipboardNotificationOpacity = 1;
+
+						Dispatcher.UIThread.Post(async () =>
+						{
+							await Task.Delay(1000);
+							ClipboardNotificationOpacity = 0;
+						});
+					}
 				}
-			});
-		}
+				else
+				{
+					Interlocked.Exchange(ref _disableClipboard, 0);
+				}
+			}).DisposeWith(Disposables);
 
-		public override bool OnClose()
-		{
-			_disposables.Dispose();
-			_disposables = null;
+			SortCommand = ReactiveCommand.Create(() => RefreshOrdering()).DisposeWith(Disposables);
 
-			return base.OnClose();
+			DateSortDirection = SortOrder.Decreasing;
 		}
 
 		private async Task RewriteTableAsync()
@@ -113,6 +114,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 				var txToSelect = Transactions.FirstOrDefault(x => x.TransactionId == rememberSelectedTransactionId);
 				if (txToSelect != default)
 				{
+					Interlocked.Exchange(ref _disableClipboard, 1);
 					SelectedTransaction = txToSelect;
 				}
 			}
@@ -126,12 +128,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			foreach (SmartCoin coin in Global.WalletService.Coins)
 			{
 				var found = txRecordList.FirstOrDefault(x => x.transactionId == coin.TransactionId);
-
-				if (Global.WalletService is null) // disposed meanwhile
-				{
-					break;
-				}
-
 				SmartTransaction foundTransaction = Global.WalletService.TransactionCache.First(x => x.GetHash() == coin.TransactionId);
 				DateTimeOffset dateTime;
 				if (foundTransaction.Height.Type == HeightType.Chain)
@@ -161,7 +157,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 					txRecordList.Add((dateTime, coin.Height, coin.Amount, coin.Label, coin.TransactionId));
 				}
 
-				if (coin.SpenderTransactionId != null)
+				if (!(coin.SpenderTransactionId is null))
 				{
 					SmartTransaction foundSpenderTransaction = Global.WalletService.TransactionCache.First(x => x.GetHash() == coin.SpenderTransactionId);
 					if (foundSpenderTransaction.Height.Type == HeightType.Chain)
@@ -221,6 +217,18 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		{
 			get => _selectedTransaction;
 			set => this.RaiseAndSetIfChanged(ref _selectedTransaction, value);
+		}
+
+		public double ClipboardNotificationOpacity
+		{
+			get => _clipboardNotificationOpacity;
+			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationOpacity, value);
+		}
+
+		public bool ClipboardNotificationVisible
+		{
+			get => _clipboardNotificationVisible;
+			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationVisible, value);
 		}
 
 		public SortOrder DateSortDirection
@@ -307,5 +315,39 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 				}
 			}
 		}
+
+		#region IDisposable Support
+
+		private volatile bool _disposedValue = false; // To detect redundant calls
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!_disposedValue)
+			{
+				if (disposing)
+				{
+					if (Transactions != null)
+					{
+						foreach (var tr in Transactions)
+						{
+							tr?.Dispose();
+						}
+					}
+					Disposables?.Dispose();
+				}
+
+				_transactions = null;
+				_disposedValue = true;
+			}
+		}
+
+		// This code added to correctly implement the disposable pattern.
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+			Dispose(true);
+		}
+
+		#endregion IDisposable Support
 	}
 }

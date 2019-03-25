@@ -9,10 +9,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile></DocumentationFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <ErrorReport>none</ErrorReport>
+    <DocumentationFile>bin\Release\\netcoreapp2.2\WalletWasabi.Packager.xml</DocumentationFile>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -21,12 +18,6 @@
   
   <ItemGroup>
     <ProjectReference Include="..\WalletWasabi\WalletWasabi.csproj" />
-  </ItemGroup>
-  
-  <ItemGroup>
-    <None Update="rcedit.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
 </Project>

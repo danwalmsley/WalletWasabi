@@ -7,11 +7,16 @@ namespace WalletWasabi.Gui.ViewModels.Validation
 	[AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
 	public sealed class ValidateMethodAttribute : Attribute
 	{
+		private readonly string _methodName;
+
 		public ValidateMethodAttribute(string methodName)
 		{
-			MethodName = methodName;
+			_methodName = methodName;
 		}
 
-		public string MethodName { get; }
+		public string MethodName
+		{
+			get { return _methodName; }
+		}
 	}
 }

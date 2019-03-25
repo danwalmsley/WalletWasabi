@@ -15,32 +15,32 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 		public DateTimeOffset DateTime
 		{
-			get => _dateTime;
-			set => this.RaiseAndSetIfChanged(ref _dateTime, value);
+			get { return _dateTime; }
+			set { this.RaiseAndSetIfChanged(ref _dateTime, value); }
 		}
 
 		public bool Confirmed
 		{
-			get => _confirmed;
-			set => this.RaiseAndSetIfChanged(ref _confirmed, value);
+			get { return _confirmed; }
+			set { this.RaiseAndSetIfChanged(ref _confirmed, value); }
 		}
 
 		public string AmountBtc
 		{
-			get => _amountBtc;
-			set => this.RaiseAndSetIfChanged(ref _amountBtc, value);
+			get { return _amountBtc; }
+			set { this.RaiseAndSetIfChanged(ref _amountBtc, value); }
 		}
 
 		public string Label
 		{
-			get => _label;
-			set => this.RaiseAndSetIfChanged(ref _label, value);
+			get { return _label; }
+			set { this.RaiseAndSetIfChanged(ref _label, value); }
 		}
 
 		public string TransactionId
 		{
-			get => _transactionId;
-			set => this.RaiseAndSetIfChanged(ref _transactionId, value);
+			get { return _transactionId; }
+			set { this.RaiseAndSetIfChanged(ref _transactionId, value); }
 		}
 	}
 }

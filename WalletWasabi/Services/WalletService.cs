@@ -200,7 +200,7 @@ namespace WalletWasabi.Services
 
 		private void RemoveCoinRecursively(SmartCoin toRemove)
 		{
-			if (toRemove.SpenderTransactionId != null)
+			if (!(toRemove.SpenderTransactionId is null))
 			{
 				foreach (var toAlsoRemove in Coins.Where(x => x.TransactionId == toRemove.SpenderTransactionId).Distinct().ToList())
 				{
@@ -209,7 +209,6 @@ namespace WalletWasabi.Services
 			}
 
 			Coins.TryRemove(toRemove);
-			MemPool.TransactionHashes.TryRemove(toRemove.SpenderTransactionId);
 		}
 
 		private async void IndexDownloader_NewFilterAsync(object sender, FilterModel filterModel)
@@ -219,7 +218,7 @@ namespace WalletWasabi.Services
 				using (HandleFiltersLock.Lock())
 				using (WalletBlocksLock.Lock())
 				{
-					if (filterModel.Filter != null && !WalletBlocks.ContainsValue(filterModel.BlockHash))
+					if (!(filterModel.Filter is null) && !WalletBlocks.ContainsValue(filterModel.BlockHash))
 					{
 						await ProcessFilterModelAsync(filterModel, CancellationToken.None);
 					}
@@ -227,7 +226,7 @@ namespace WalletWasabi.Services
 				NewFilterProcessed?.Invoke(this, filterModel);
 
 				// Try perform mempool cleanup based on connected nodes' mempools.
-				if (Synchronizer != null && Synchronizer.GetFiltersLeft() == 0)
+				if (!(Synchronizer is null) && Synchronizer.GetFiltersLeft() == 0)
 				{
 					MemPool?.TryPerformMempoolCleanupAsync(Nodes, CancellationToken.None);
 				}
@@ -343,7 +342,7 @@ namespace WalletWasabi.Services
 			KeyManager.AssertCleanKeysIndexed(21, false);
 
 			IEnumerable<HdPubKey> keys = KeyManager.GetKeys(KeyState.Clean, isInternal: false);
-			if (dontTouch != null)
+			if (!(dontTouch is null))
 			{
 				keys = keys.Except(dontTouch);
 				if (!keys.Any())
@@ -352,7 +351,7 @@ namespace WalletWasabi.Services
 				}
 			}
 
-			var foundLabelless = keys.FirstOrDefault(x => !x.HasLabel); // Return the first labelless.
+			var foundLabelless = keys.FirstOrDefault(x => !x.HasLabel()); // Return the first labelless.
 			HdPubKey ret = foundLabelless ?? keys.RandomElement(); // Return the first, because that's the oldest.
 
 			ret.SetLabel(label, KeyManager);
@@ -360,7 +359,7 @@ namespace WalletWasabi.Services
 			return ret;
 		}
 
-		public List<SmartCoin> GetClusters(SmartCoin coin, List<SmartCoin> current, ILookup<Script, SmartCoin> lookupScriptPubKey, ILookup<uint256, SmartCoin> lookupSpenderTransactionId, ILookup<uint256, SmartCoin> lookupTransactionId)
+		public List<SmartCoin> GetHistory(SmartCoin coin, List<SmartCoin> current, ILookup<Script, SmartCoin> lookupScriptPubKey, ILookup<uint256, SmartCoin> lookupSpenderTransactionId, ILookup<uint256, SmartCoin> lookupTransactionId)
 		{
 			Guard.NotNull(nameof(coin), coin);
 			if (current.Contains(coin))
@@ -368,19 +367,19 @@ namespace WalletWasabi.Services
 				return current;
 			}
 
-			var clusters = current.Concat(new List<SmartCoin> { coin }).ToList(); // The coin is the first elem in its cluster.
+			var history = current.Concat(new List<SmartCoin> { coin }).ToList(); // Fhe coin is the first elem in its history.
 
 			// If the script is the same then we have a match, no matter of the anonimity set.
 			foreach (var c in lookupScriptPubKey[coin.ScriptPubKey])
 			{
-				if (!clusters.Contains(c))
+				if (!history.Contains(c))
 				{
-					var h = GetClusters(c, clusters, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
+					var h = GetHistory(c, history, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
 					foreach (var hr in h)
 					{
-						if (!clusters.Contains(hr))
+						if (!history.Contains(hr))
 						{
-							clusters.Add(hr);
+							history.Add(hr);
 						}
 					}
 				}
@@ -389,15 +388,15 @@ namespace WalletWasabi.Services
 			// If it spends someone and hasn't been sufficiently anonymized.
 			if (coin.AnonymitySet < ServiceConfiguration.PrivacyLevelStrong)
 			{
-				var c = lookupSpenderTransactionId[coin.TransactionId].Where(x => !clusters.Contains(x)).FirstOrDefault();
+				var c = lookupSpenderTransactionId[coin.TransactionId].Where(x => !history.Contains(x)).FirstOrDefault();
 				if (c != default)
 				{
-					var h = GetClusters(c, clusters, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
+					var h = GetHistory(c, history, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
 					foreach (var hr in h)
 					{
-						if (!clusters.Contains(hr))
+						if (!history.Contains(hr))
 						{
-							clusters.Add(hr);
+							history.Add(hr);
 						}
 					}
 				}
@@ -406,19 +405,19 @@ namespace WalletWasabi.Services
 			// If it's being spent by someone and that someone hasn't been sufficiently anonymized.
 			if (!coin.Unspent)
 			{
-				var c = lookupTransactionId[coin.SpenderTransactionId].Where(x => !clusters.Contains(x)).FirstOrDefault();
+				var c = lookupTransactionId[coin.SpenderTransactionId].Where(x => !history.Contains(x)).FirstOrDefault();
 				if (c != default)
 				{
 					if (c.AnonymitySet < ServiceConfiguration.PrivacyLevelStrong)
 					{
 						if (c != default)
 						{
-							var h = GetClusters(c, clusters, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
+							var h = GetHistory(c, history, lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId);
 							foreach (var hr in h)
 							{
-								if (!clusters.Contains(hr))
+								if (!history.Contains(hr))
 								{
-									clusters.Add(hr);
+									history.Add(hr);
 								}
 							}
 						}
@@ -426,7 +425,7 @@ namespace WalletWasabi.Services
 				}
 			}
 
-			return clusters;
+			return history;
 		}
 
 		private void ProcessBlock(Height height, Block block)
@@ -446,7 +445,7 @@ namespace WalletWasabi.Services
 			uint256 txId = tx.GetHash();
 
 			bool justUpdate = false;
-			if (tx.Confirmed)
+			if (tx.Height.Type == HeightType.Chain)
 			{
 				MemPool.TransactionHashes.TryRemove(txId); // If we have in mempool, remove.
 				if (!tx.Transaction.PossiblyNativeSegWitInvolved()) return; // We don't care about non-witness transactions for other than mempool cleanup.
@@ -492,18 +491,15 @@ namespace WalletWasabi.Services
 				{
 					if (tx.Height == Height.MemPool)
 					{
-						// if the received transaction is spending at least one input already
-						// spent by a previous unconfirmed transaction signaling RBF then it is not a double
-						// spanding transaction but a replacement transaction.
-						if (doubleSpends.Any(x => x.IsReplaceable))
+						// if all double spent coins are mempool and RBF
+						if (doubleSpends.All(x => x.RBF && x.Height == Height.MemPool))
 						{
 							// remove double spent coins (if other coin spends it, remove that too and so on)
 							// will add later if they came to our keys
-							foreach (SmartCoin doubleSpentCoin in doubleSpends.Where(x => !x.Confirmed))
+							foreach (SmartCoin doubleSpentCoin in doubleSpends)
 							{
 								RemoveCoinRecursively(doubleSpentCoin);
 							}
-							tx.SetReplacement();
 						}
 						else
 						{
@@ -530,10 +526,10 @@ namespace WalletWasabi.Services
 				{
 					foundKey.SetKeyState(KeyState.Used, KeyManager);
 					List<SmartCoin> spentOwnCoins = Coins.Where(x => tx.Transaction.Inputs.Any(y => y.PrevOut.Hash == x.TransactionId && y.PrevOut.N == x.Index)).ToList();
-					var anonset = tx.Transaction.GetAnonymitySet(i);
+					var mixin = tx.Transaction.GetMixin(i);
 					if (spentOwnCoins.Count != 0)
 					{
-						anonset += spentOwnCoins.Min(x => x.AnonymitySet) - 1; // Minus 1, because don't count own.
+						mixin += spentOwnCoins.Min(x => x.Mixin);
 
 						// Cleanup exposed links where the txo has been spent.
 						foreach (var input in spentOwnCoins.Select(x => x.GetTxoRef()))
@@ -542,14 +538,14 @@ namespace WalletWasabi.Services
 						}
 					}
 
-					SmartCoin newCoin = new SmartCoin(txId, i, output.ScriptPubKey, output.Value, tx.Transaction.Inputs.ToTxoRefs().ToArray(), tx.Height, tx.IsRBF, anonset, foundKey.Label, spenderTransactionId: null, false, pubKey: foundKey); // Don't inherit locked status from key, that's different.
-																																																												   // If we didn't have it.
+					SmartCoin newCoin = new SmartCoin(txId, i, output.ScriptPubKey, output.Value, tx.Transaction.Inputs.ToTxoRefs().ToArray(), tx.Height, tx.Transaction.RBF, mixin, foundKey.Label, spenderTransactionId: null, false); // Don't inherit locked status from key, that's different.
+																																																										 // If we didn't have it.
 					if (Coins.TryAdd(newCoin))
 					{
 						TransactionCache.TryAdd(tx);
 
 						// If it's being mixed and anonset is not sufficient, then queue it.
-						if (newCoin.Unspent && !newCoin.IsDust && ChaumianClient.HasIngredients && newCoin.Label.StartsWith("ZeroLink", StringComparison.Ordinal) && newCoin.AnonymitySet < ServiceConfiguration.MixUntilAnonymitySet)
+						if (newCoin.Unspent && ChaumianClient.HasIngredients && newCoin.Label.StartsWith("ZeroLink", StringComparison.Ordinal) && newCoin.AnonymitySet < ServiceConfiguration.MixUntilAnonymitySet)
 						{
 							Task.Run(async () =>
 							{
@@ -565,9 +561,9 @@ namespace WalletWasabi.Services
 						}
 
 						// Make sure there's always 21 clean keys generated and indexed.
-						KeyManager.AssertCleanKeysIndexed(21, foundKey.IsInternal);
+						KeyManager.AssertCleanKeysIndexed(21, foundKey.IsInternal());
 
-						if (foundKey.IsInternal)
+						if (foundKey.IsInternal())
 						{
 							// Make sure there's always 14 internal locked keys generated and indexed.
 							KeyManager.AssertLockedInternalKeysIndexed(14);
@@ -593,7 +589,7 @@ namespace WalletWasabi.Services
 				var input = tx.Transaction.Inputs[i];
 
 				var foundCoin = Coins.FirstOrDefault(x => x.TransactionId == input.PrevOut.Hash && x.Index == input.PrevOut.N);
-				if (foundCoin != null)
+				if (!(foundCoin is null))
 				{
 					foundCoin.SpenderTransactionId = txId;
 					TransactionCache.TryAdd(tx);
@@ -653,7 +649,7 @@ namespace WalletWasabi.Services
 						// Try to get block information from local running Core node first.
 						try
 						{
-							if (LocalBitcoinCoreNode is null || !LocalBitcoinCoreNode.IsConnected)
+							if (LocalBitcoinCoreNode == null || !LocalBitcoinCoreNode.IsConnected)
 							{
 								DisconnectDisposeNullLocalBitcoinCoreNode();
 								using (var handshakeTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancel))
@@ -955,7 +951,7 @@ namespace WalletWasabi.Services
 			{
 				feeTarget = 2;
 			}
-			if (subtractFeeFromAmountIndex != null) // If not null, make sure not out of range. If null fee is substracted from the change.
+			if (!(subtractFeeFromAmountIndex is null)) // If not null, make sure not out of range. If null fee is substracted from the change.
 			{
 				if (subtractFeeFromAmountIndex < 0)
 				{
@@ -969,7 +965,7 @@ namespace WalletWasabi.Services
 
 			// Get allowed coins to spend.
 			List<SmartCoin> allowedSmartCoinInputs; // Inputs those can be used to build the transaction.
-			if (allowedInputs != null) // If allowedInputs are specified then select the coins from them.
+			if (!(allowedInputs is null)) // If allowedInputs are specified then select the coins from them.
 			{
 				if (!allowedInputs.Any())
 				{
@@ -978,22 +974,22 @@ namespace WalletWasabi.Services
 
 				if (allowUnconfirmed)
 				{
-					allowedSmartCoinInputs = Coins.Where(x => !x.Unavailable && allowedInputs.Any(y => y.TransactionId == x.TransactionId && y.Index == x.Index)).ToList();
+					allowedSmartCoinInputs = Coins.Where(x => !x.SpentOrCoinJoinInProgress && allowedInputs.Any(y => y.TransactionId == x.TransactionId && y.Index == x.Index)).ToList();
 				}
 				else
 				{
-					allowedSmartCoinInputs = Coins.Where(x => !x.Unavailable && x.Confirmed && allowedInputs.Any(y => y.TransactionId == x.TransactionId && y.Index == x.Index)).ToList();
+					allowedSmartCoinInputs = Coins.Where(x => !x.SpentOrCoinJoinInProgress && x.Confirmed && allowedInputs.Any(y => y.TransactionId == x.TransactionId && y.Index == x.Index)).ToList();
 				}
 			}
 			else
 			{
 				if (allowUnconfirmed)
 				{
-					allowedSmartCoinInputs = Coins.Where(x => !x.Unavailable).ToList();
+					allowedSmartCoinInputs = Coins.Where(x => !x.SpentOrCoinJoinInProgress).ToList();
 				}
 				else
 				{
-					allowedSmartCoinInputs = Coins.Where(x => !x.Unavailable && x.Confirmed).ToList();
+					allowedSmartCoinInputs = Coins.Where(x => !x.SpentOrCoinJoinInProgress && x.Confirmed).ToList();
 				}
 			}
 
@@ -1001,7 +997,7 @@ namespace WalletWasabi.Services
 			Logger.LogInfo<WalletService>("Calculating dynamic transaction fee...");
 
 			Money feePerBytes = null;
-			using (var client = new WasabiClient(Synchronizer.WasabiClient.TorClient.DestinationUriAction, Synchronizer.WasabiClient.TorClient.TorSocks5EndPoint))
+			using (var client = new WasabiClient(Synchronizer.WasabiClient.TorClient.DestinationUri, Synchronizer.WasabiClient.TorClient.TorSocks5EndPoint))
 			{
 				Money feeRate = Synchronizer.GetFeeRate(feeTarget);
 				Money sanityCheckedFeeRate = Math.Max(feeRate, 2); // Use the sanity check that under 2 satoshi per bytes should not be displayed. To correct possible rounding errors.
@@ -1084,7 +1080,7 @@ namespace WalletWasabi.Services
 				var changeHdPubKey = KeyManager.GetKeys(KeyState.Clean, true).RandomElement();
 
 				changeHdPubKey.SetLabel(changeLabel, KeyManager);
-				changeScriptPubKey = changeHdPubKey.P2wpkhScript;
+				changeScriptPubKey = changeHdPubKey.GetP2wpkhScript();
 			}
 			else
 			{
@@ -1154,11 +1150,9 @@ namespace WalletWasabi.Services
 			for (var i = 0U; i < tx.Outputs.Count; i++)
 			{
 				TxOut output = tx.Outputs[i];
-				var anonset = (tx.GetAnonymitySet(i) + spentCoins.Min(x => x.AnonymitySet)) - 1; // Minus 1, because count own only once.
-				var foundKey = KeyManager.GetKeys(KeyState.Clean).FirstOrDefault(x => output.ScriptPubKey == x.P2wpkhScript);
-				var coin = new SmartCoin(tx.GetHash(), i, output.ScriptPubKey, output.Value, tx.Inputs.ToTxoRefs().ToArray(), Height.Unknown, tx.RBF, anonset, pubKey: foundKey);
-
-				if (foundKey != null)
+				var mixin = tx.GetMixin(i) + spentCoins.Min(x => x.Mixin);
+				var coin = new SmartCoin(tx.GetHash(), i, output.ScriptPubKey, output.Value, tx.Inputs.ToTxoRefs().ToArray(), Height.Unknown, tx.RBF, mixin);
+				if (KeyManager.GetKeys(KeyState.Clean).Select(x => x.GetP2wpkhScript()).Contains(coin.ScriptPubKey))
 				{
 					coin.Label = changeLabel;
 					innerWalletOutputs.Add(coin);
@@ -1179,28 +1173,15 @@ namespace WalletWasabi.Services
 			var coinsToSpend = new HashSet<SmartCoin>();
 			var unspentConfirmedCoins = new List<SmartCoin>();
 			var unspentUnconfirmedCoins = new List<SmartCoin>();
-			foreach (SmartCoin coin in unspentCoins)
-			{
-				if (coin.Confirmed)
-				{
-					unspentConfirmedCoins.Add(coin);
-				}
-				else
-				{
-					unspentUnconfirmedCoins.Add(coin);
-				}
-			}
+			foreach (var coin in unspentCoins)
+				if (coin.Confirmed) unspentConfirmedCoins.Add(coin);
+				else unspentUnconfirmedCoins.Add(coin);
 
 			bool haveEnough = SelectCoins(ref coinsToSpend, totalOutAmount, unspentConfirmedCoins);
 			if (!haveEnough)
-			{
 				haveEnough = SelectCoins(ref coinsToSpend, totalOutAmount, unspentUnconfirmedCoins);
-			}
-
 			if (!haveEnough)
-			{
 				throw new InsufficientBalanceException(totalOutAmount, unspentConfirmedCoins.Select(x => x.Amount).Sum() + unspentUnconfirmedCoins.Select(x => x.Amount).Sum());
-			}
 
 			return coinsToSpend;
 		}
@@ -1225,8 +1206,8 @@ namespace WalletWasabi.Services
 		{
 			newLabel = Guard.Correct(newLabel);
 			coin.Label = newLabel;
-			var key = KeyManager.GetKeys(x => x.P2wpkhScript == coin.ScriptPubKey).SingleOrDefault();
-			if (key != null)
+			var key = KeyManager.GetKeys(x => x.GetP2wpkhScript() == coin.ScriptPubKey).SingleOrDefault();
+			if (!(key is null))
 			{
 				key.SetLabel(newLabel, KeyManager);
 			}
@@ -1234,7 +1215,7 @@ namespace WalletWasabi.Services
 
 		public async Task SendTransactionAsync(SmartTransaction transaction)
 		{
-			using (var client = new WasabiClient(Synchronizer.WasabiClient.TorClient.DestinationUriAction, Synchronizer.WasabiClient.TorClient.TorSocks5EndPoint))
+			using (var client = new WasabiClient(Synchronizer.WasabiClient.TorClient.DestinationUri, Synchronizer.WasabiClient.TorClient.TorSocks5EndPoint))
 			{
 				try
 				{
@@ -1288,7 +1269,7 @@ namespace WalletWasabi.Services
 				{
 					Interlocked.Increment(ref _refreshCoinCalls);
 				}
-				var unspentCoins = Coins.Where(c => c.Unspent && !c.IsDust); //refreshing unspent coins clusters only
+				var unspentCoins = Coins.Where(c => c.Unspent); //refreshing unspent coins history only
 				if (unspentCoins.Any())
 				{
 					ILookup<Script, SmartCoin> lookupScriptPubKey = Coins.ToLookup(c => c.ScriptPubKey, c => c);
@@ -1299,8 +1280,8 @@ namespace WalletWasabi.Services
 
 					await Task.Run(() => Parallel.ForEach(unspentCoins, new ParallelOptions { MaxDegreeOfParallelism = simultaneousThread }, coin =>
 					{
-						var result = string.Join(", ", GetClusters(coin, new List<SmartCoin>(), lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId).Select(x => x.Label).Distinct());
-						coin.SetClusters(result);
+						var result = string.Join(", ", GetHistory(coin, new List<SmartCoin>(), lookupScriptPubKey, lookupSpenderTransactionId, lookupTransactionId).Select(x => x.Label).Distinct());
+						coin.SetHistory(result);
 					}));
 				}
 				if (Interlocked.Read(ref _refreshCoinCalls) == 2) //scheduled to rerun so we start the work again
@@ -1318,7 +1299,7 @@ namespace WalletWasabi.Services
 			catch (Exception ex)
 			{
 				Interlocked.Exchange(ref _refreshCoinCalls, 0);
-				Logger.LogError<WalletService>($"Refreshing coin clusters failed: {ex}");
+				Logger.LogError<WalletService>($"Refreshing coins history failed: {ex}");
 			}
 		}
 

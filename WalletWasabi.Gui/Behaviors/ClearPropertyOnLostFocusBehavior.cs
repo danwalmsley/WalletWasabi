@@ -11,7 +11,7 @@ namespace WalletWasabi.Gui.Behaviors
 {
 	public class ClearPropertyOnLostFocusBehavior : Behavior<Control>
 	{
-		private CompositeDisposable Disposables { get; set; }
+		private CompositeDisposable _disposables;
 
 		public static readonly AvaloniaProperty<object> TargetPropertyProperty =
 			AvaloniaProperty.Register<ClearPropertyOnLostFocusBehavior, object>(nameof(TargetProperty), defaultBindingMode: BindingMode.TwoWay);
@@ -24,7 +24,7 @@ namespace WalletWasabi.Gui.Behaviors
 
 		protected override void OnAttached()
 		{
-			Disposables = new CompositeDisposable
+			_disposables = new CompositeDisposable
 			{
 				Observable.FromEventPattern<RoutedEventArgs>(AssociatedObject, nameof(AssociatedObject.LostFocus)).Subscribe(args=>
 				{
@@ -37,9 +37,9 @@ namespace WalletWasabi.Gui.Behaviors
 
 		protected override void OnDetaching()
 		{
-			base.OnDetaching();
+			_disposables?.Dispose();
 
-			Disposables?.Dispose();
+			base.OnDetaching();
 		}
 	}
 }

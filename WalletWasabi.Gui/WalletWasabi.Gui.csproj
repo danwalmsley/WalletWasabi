@@ -39,10 +39,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile></DocumentationFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <ErrorReport>none</ErrorReport>
+    <DocumentationFile>bin\Release\netcoreapp2.2\WalletWasabi.Gui.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -57,7 +54,6 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" />
-	<PackageReference Include="Avalonia.Angle.Windows.Natives" Version="2.1.0.2019013001" />
   </ItemGroup>
 
   <ItemGroup>

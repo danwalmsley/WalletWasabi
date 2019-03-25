@@ -5,26 +5,26 @@ using System.Reactive.Disposables;
 namespace WalletWasabi.Gui.Behaviors
 {
 	public class CommandOnClickBehavior : CommandBasedBehavior<InputElement>
-	{
-		private CompositeDisposable Disposables { get; set; }
+    {
+        private CompositeDisposable _disposables;
 
-		protected override void OnAttached()
-		{
-			Disposables = new CompositeDisposable();
+        protected override void OnAttached()
+        {
+            _disposables = new CompositeDisposable();
 
-			base.OnAttached();
+            base.OnAttached();
 
-			Disposables.Add(AssociatedObject.AddHandler(InputElement.PointerPressedEvent, (sender, e) =>
-			{
-				e.Handled = ExecuteCommand();
-			}));
-		}
+            _disposables.Add(AssociatedObject.AddHandler(InputElement.PointerPressedEvent, (sender, e) =>
+            {
+                e.Handled = ExecuteCommand();
+            }));
+        }
 
-		protected override void OnDetaching()
-		{
-			base.OnDetaching();
+        protected override void OnDetaching()
+        {
+            base.OnDetaching();
 
-			Disposables?.Dispose();
-		}
-	}
+            _disposables.Dispose();
+        }
+    }
 }

@@ -1,143 +1,85 @@
-﻿using AvalonStudio.Extensibility;
+﻿using System;
+using System.IO;
+using System.Collections.ObjectModel;
+using System.Linq;
+using NBitcoin;
+using AvalonStudio.Extensibility;
 using AvalonStudio.Shell;
 using ReactiveUI;
-using System;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using WalletWasabi.Gui.Controls.WalletExplorer;
 using WalletWasabi.Gui.ViewModels;
-using WalletWasabi.Helpers;
 using WalletWasabi.KeyManagement;
 using WalletWasabi.Logging;
+using WalletWasabi.Services;
+using System.Threading.Tasks;
+using WalletWasabi.Gui.Controls.WalletExplorer;
+using Avalonia.Controls;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace WalletWasabi.Gui.Tabs.WalletManager
 {
 	internal class LoadWalletViewModel : CategoryViewModel
 	{
 		private ObservableCollection<string> _wallets;
-		private string _password;
 		private string _selectedWallet;
-		private bool _isWalletSelected;
 		private bool _isWalletOpened;
 		private bool _canLoadWallet;
-		private bool _canTestPassword;
 		private string _warningMessage;
 		private string _validationMessage;
-		private string _successMessage;
 		private bool _isBusy;
 		private string _loadButtonText;
 
 		private WalletManagerViewModel Owner { get; }
-		public bool RequirePassword { get; }
 
-		public LoadWalletViewModel(WalletManagerViewModel owner, bool requirePassword) : base(requirePassword ? "Test Password" : "Load Wallet")
+		public LoadWalletViewModel(WalletManagerViewModel owner) : base("Load Wallet")
 		{
 			Owner = owner;
-			Password = "";
-			RequirePassword = requirePassword;
-			Wallets = new ObservableCollection<string>();
+			_wallets = new ObservableCollection<string>();
 
 			this.WhenAnyValue(x => x.SelectedWallet)
-				.Subscribe(selectedWallet => SetWalletStates());
+				.Subscribe(selectedWallet => CanLoadWallet = !string.IsNullOrEmpty(selectedWallet) && !IsWalletOpened);
 
 			this.WhenAnyValue(x => x.IsWalletOpened)
-				.Subscribe(isWalletOpened => SetWalletStates());
+				.Subscribe(isWalletOpened => CanLoadWallet = !string.IsNullOrEmpty(SelectedWallet) && !isWalletOpened);
 
-			this.WhenAnyValue(x => x.Password).Subscribe(x =>
-			{
-				try
-				{
-					if (x.NotNullAndNotEmpty())
-					{
-						char lastChar = x.Last();
-						if (lastChar == '\r' || lastChar == '\n') // If the last character is cr or lf then act like it'd be a sign to do the job.
-						{
-							Password = x.TrimEnd('\r', '\n');
-							LoadKeyManager(requirePassword: true);
-						}
-					}
-				}
-				catch (Exception ex)
-				{
-					Logger.LogTrace(ex);
-				}
-			});
+			this.WhenAnyValue(x => x.IsWalletOpened)
+				.Subscribe(isWalletOpened => WarningMessage = isWalletOpened
+					? "There is already an open wallet. Restart the application to open another one."
+					: string.Empty);
 
 			LoadCommand = ReactiveCommand.Create(LoadWalletAsync, this.WhenAnyValue(x => x.CanLoadWallet));
-			TestPasswordCommand = ReactiveCommand.Create(() => LoadKeyManager(requirePassword: true), this.WhenAnyValue(x => x.CanTestPassword));
 			OpenFolderCommand = ReactiveCommand.Create(OpenWalletsFolder);
 			SetLoadButtonText(IsBusy);
 		}
 
 		public ObservableCollection<string> Wallets
 		{
-			get => _wallets;
-			set => this.RaiseAndSetIfChanged(ref _wallets, value);
-		}
-
-		public string Password
-		{
-			get => _password;
-			set => this.RaiseAndSetIfChanged(ref _password, value);
+			get { return _wallets; }
+			set { this.RaiseAndSetIfChanged(ref _wallets, value); }
 		}
 
 		public string SelectedWallet
 		{
-			get => _selectedWallet;
-			set => this.RaiseAndSetIfChanged(ref _selectedWallet, value);
-		}
-
-		public bool IsWalletSelected
-		{
-			get => _isWalletSelected;
-			set => this.RaiseAndSetIfChanged(ref _isWalletSelected, value);
+			get { return _selectedWallet; }
+			set { this.RaiseAndSetIfChanged(ref _selectedWallet, value); }
 		}
 
 		public bool IsWalletOpened
 		{
-			get => _isWalletOpened;
-			set => this.RaiseAndSetIfChanged(ref _isWalletOpened, value);
+			get { return _isWalletOpened; }
+			set { this.RaiseAndSetIfChanged(ref _isWalletOpened, value); }
 		}
 
 		public string WarningMessage
 		{
-			get => _warningMessage;
-			set => this.RaiseAndSetIfChanged(ref _warningMessage, value);
+			get { return _warningMessage; }
+			set { this.RaiseAndSetIfChanged(ref _warningMessage, value); }
 		}
 
 		public string ValidationMessage
 		{
-			get => _validationMessage;
-			set => this.RaiseAndSetIfChanged(ref _validationMessage, value);
-		}
-
-		public string SuccessMessage
-		{
-			get => _successMessage;
-			set => this.RaiseAndSetIfChanged(ref _successMessage, value);
-		}
-
-		private void SetWarningMessage(string message)
-		{
-			WarningMessage = message;
-			ValidationMessage = "";
-			SuccessMessage = "";
-		}
-
-		private void SetValidationMessage(string message)
-		{
-			WarningMessage = "";
-			ValidationMessage = message;
-			SuccessMessage = "";
-		}
-
-		private void SetSuccessMessage(string message)
-		{
-			WarningMessage = "";
-			ValidationMessage = "";
-			SuccessMessage = message;
+			get { return _validationMessage; }
+			set { this.RaiseAndSetIfChanged(ref _validationMessage, value); }
 		}
 
 		public void SetLoadButtonText(bool isBusy)
@@ -147,39 +89,37 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 
 		public string LoadButtonText
 		{
-			get => _loadButtonText;
-			set => this.RaiseAndSetIfChanged(ref _loadButtonText, value);
+			get { return _loadButtonText; }
+			set { this.RaiseAndSetIfChanged(ref _loadButtonText, value); }
 		}
 
 		public bool CanLoadWallet
 		{
-			get => _canLoadWallet;
-			set => this.RaiseAndSetIfChanged(ref _canLoadWallet, value);
-		}
-
-		public bool CanTestPassword
-		{
-			get => _canTestPassword;
-			set => this.RaiseAndSetIfChanged(ref _canTestPassword, value);
+			get
+			{
+				if (IsBusy) return false;
+				return _canLoadWallet;
+			}
+			set
+			{
+				this.RaiseAndSetIfChanged(ref _canLoadWallet, value);
+			}
 		}
 
 		public bool IsBusy
 		{
-			get => _isBusy;
+			get { return _isBusy; }
 			set
 			{
-				this.RaiseAndSetIfChanged(ref _isBusy, value);
-
+				CanLoadWallet = !value;
 				SetLoadButtonText(value);
-				SetWalletStates();
+				this.RaiseAndSetIfChanged(ref _isBusy, value);
 			}
 		}
 
 		public override void OnCategorySelected()
 		{
-			Wallets.Clear();
-			Password = "";
-			SetValidationMessage("");
+			_wallets.Clear();
 
 			if (!File.Exists(Global.WalletsDir))
 			{
@@ -190,88 +130,19 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 			var walletFiles = directoryInfo.GetFiles("*.json", SearchOption.TopDirectoryOnly).OrderByDescending(t => t.LastAccessTimeUtc);
 			foreach (var file in walletFiles)
 			{
-				Wallets.Add(Path.GetFileNameWithoutExtension(file.FullName));
+				_wallets.Add(Path.GetFileNameWithoutExtension(file.FullName));
 			}
 
-			SelectedWallet = Wallets.FirstOrDefault();
-			SetWalletStates();
-		}
-
-		private void SetWalletStates()
-		{
-			IsWalletSelected = !string.IsNullOrEmpty(SelectedWallet);
-			CanTestPassword = IsWalletSelected;
-
-			IsWalletOpened = Global.WalletService != null;
-			// If not busy loading.
-			// And wallet is selected.
-			// And no wallet is opened.
-			CanLoadWallet = !IsBusy && IsWalletSelected && !IsWalletOpened;
-
-			if (IsWalletOpened)
+			if (_wallets.Any())
 			{
-				SetWarningMessage("There is already an open wallet. Restart the application to open another one.");
+				SelectedWallet = _wallets.First();
 			}
+
+			IsWalletOpened = !(Global.WalletService is null);
+			ValidationMessage = null;
 		}
 
 		public ReactiveCommand LoadCommand { get; }
-		public ReactiveCommand TestPasswordCommand { get; }
-
-		public KeyManager LoadKeyManager(bool requirePassword)
-		{
-			try
-			{
-				CanTestPassword = false;
-				var password = Guard.Correct(Password); // Don't let whitespaces to the beginning and to the end.
-				Password = ""; // Clear password field.
-
-				if (string.IsNullOrEmpty(SelectedWallet))
-				{
-					SetValidationMessage("No wallet selected.");
-					return null;
-				}
-
-				var walletFullPath = Global.GetWalletFullPath(SelectedWallet);
-				var walletBackupFullPath = Global.GetWalletBackupFullPath(SelectedWallet);
-				if (!File.Exists(walletFullPath) && !File.Exists(walletBackupFullPath))
-				{
-					// The selected wallet is not available any more (someone deleted it?).
-					OnCategorySelected();
-					SetValidationMessage("The selected wallet and its backup don't exist, did you delete them?");
-					return null;
-				}
-
-				KeyManager keyManager = Global.LoadKeyManager(walletFullPath, walletBackupFullPath);
-
-				// Only check requirepassword here, because the above checks are applicable to loadwallet, too and we are using this function from load wallet.
-				if (requirePassword)
-				{
-					if (!keyManager.TestPassword(password))
-					{
-						SetValidationMessage("Wrong password.");
-						return null;
-					}
-					else
-					{
-						SetSuccessMessage("Correct password.");
-					}
-				}
-
-				return keyManager;
-			}
-			catch (Exception ex)
-			{
-				// Initialization failed.
-				SetValidationMessage(ex.ToTypeMessageString());
-				Logger.LogError<LoadWalletViewModel>(ex);
-
-				return null;
-			}
-			finally
-			{
-				CanTestPassword = IsWalletSelected;
-			}
-		}
 
 		public async Task LoadWalletAsync()
 		{
@@ -279,9 +150,14 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 			{
 				IsBusy = true;
 
-				var keyManager = LoadKeyManager(RequirePassword);
-				if (keyManager is null)
+				var walletFullPath = Path.Combine(Global.WalletsDir, SelectedWallet + ".json");
+				var walletBackupFullPath = Path.Combine(Global.WalletBackupsDir, SelectedWallet + ".json");
+				if (!File.Exists(walletFullPath) && !File.Exists(walletBackupFullPath))
 				{
+					// The selected wallet is not available any more (someone deleted it?).
+					OnCategorySelected();
+					SelectedWallet = null;
+					ValidationMessage = "The selected wallet and its backup doesn't exsist, did you delete them?";
 					return;
 				}
 
@@ -289,6 +165,39 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 				{
 					await Task.Run(async () =>
 					{
+						KeyManager keyManager = null;
+						try
+						{
+							keyManager = LoadWallet(walletFullPath);
+						}
+						catch (Exception ex)
+						{
+							if (!File.Exists(walletBackupFullPath))
+							{
+								throw;
+							}
+
+							Logger.LogWarning($"Wallet got corrupted.\n" +
+								$"Wallet Filepath: {walletFullPath}\n" +
+								$"Trying to recover it from backup.\n" +
+								$"Backup path: {walletBackupFullPath}\n" +
+								$"Exception: {ex.ToString()}");
+							if (File.Exists(walletFullPath))
+							{
+								string corruptedWalletBackupPath = Path.Combine(Global.WalletBackupsDir, $"{Path.GetFileName(walletFullPath)}_CorruptedBackup");
+								if (File.Exists(corruptedWalletBackupPath))
+								{
+									File.Delete(corruptedWalletBackupPath);
+									Logger.LogInfo($"Deleted previous corrupted wallet file backup from {corruptedWalletBackupPath}.");
+								}
+								File.Move(walletFullPath, corruptedWalletBackupPath);
+								Logger.LogInfo($"Backed up corrupted wallet file to {corruptedWalletBackupPath}.");
+							}
+							File.Copy(walletBackupFullPath, walletFullPath);
+
+							keyManager = LoadWallet(walletFullPath);
+						}
+
 						await Global.InitializeWalletServiceAsync(keyManager);
 					});
 					// Successffully initialized.
@@ -297,17 +206,17 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 					if (Global.WalletService.Coins.Any())
 					{
 						// If already have coins then open with History tab first.
-						IoC.Get<WalletExplorerViewModel>().OpenWallet(Global.WalletService, receiveDominant: false);
+						IoC.Get<WalletExplorerViewModel>().OpenWallet(SelectedWallet, receiveDominant: false);
 					}
 					else // Else open with Receive tab first.
 					{
-						IoC.Get<WalletExplorerViewModel>().OpenWallet(Global.WalletService, receiveDominant: true);
+						IoC.Get<WalletExplorerViewModel>().OpenWallet(SelectedWallet, receiveDominant: true);
 					}
 				}
 				catch (Exception ex)
 				{
 					// Initialization failed.
-					SetValidationMessage(ex.ToTypeMessageString());
+					ValidationMessage = ex.ToTypeMessageString();
 					Logger.LogError<LoadWalletViewModel>(ex);
 					await Global.DisposeInWalletDependentServicesAsync();
 				}
@@ -315,8 +224,20 @@ namespace WalletWasabi.Gui.Tabs.WalletManager
 			finally
 			{
 				IsBusy = false;
-				SetWalletStates();
 			}
+		}
+
+		private KeyManager LoadWallet(string walletFullPath)
+		{
+			KeyManager keyManager;
+			var walletFileInfo = new FileInfo(walletFullPath)
+			{
+				LastAccessTime = DateTime.Now
+			};
+
+			keyManager = KeyManager.FromFile(walletFullPath);
+			Logger.LogInfo($"Wallet decrypted: {SelectedWallet}.");
+			return keyManager;
 		}
 
 		public ReactiveCommand OpenFolderCommand { get; }

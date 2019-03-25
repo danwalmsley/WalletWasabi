@@ -12,7 +12,10 @@ namespace WalletWasabi.Gui.ViewModels
 	{
 		public event EventHandler<DataErrorsChangedEventArgs> ErrorsChanged;
 
-		public bool HasErrors => Validator.ValidateAllProperties(this).Any();
+		public bool HasErrors
+		{
+			get { return Validator.ValidateAllProperties(this).Any(); }
+		}
 
 		public IEnumerable GetErrors(string propertyName)
 		{

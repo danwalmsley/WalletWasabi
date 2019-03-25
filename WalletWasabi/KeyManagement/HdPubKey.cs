@@ -18,22 +18,8 @@ namespace WalletWasabi.KeyManagement
 		[JsonConverter(typeof(KeyPathJsonConverter))]
 		public KeyPath FullKeyPath { get; }
 
-		private string _label;
-
 		[JsonProperty(Order = 3)]
-		public string Label
-		{
-			get => _label;
-			private set
-			{
-				value = Guard.Correct(value);
-				if (value != _label)
-				{
-					_label = value;
-					HasLabel = !string.IsNullOrEmpty(value);
-				}
-			}
-		}
+		public string Label { get; private set; }
 
 		[JsonProperty(Order = 4)]
 		public KeyState KeyState { get; private set; }
@@ -42,30 +28,8 @@ namespace WalletWasabi.KeyManagement
 		{
 			PubKey = Guard.NotNull(nameof(pubKey), pubKey);
 			FullKeyPath = Guard.NotNull(nameof(fullKeyPath), fullKeyPath);
-			SetLabel(label, null);
+			Label = Guard.Correct(label);
 			KeyState = keyState;
-
-			P2pkScript = PubKey.ScriptPubKey;
-			P2pkhScript = PubKey.Hash.ScriptPubKey;
-			P2wpkhScript = PubKey.WitHash.ScriptPubKey;
-			P2shOverP2wpkhScript = P2wpkhScript.Hash.ScriptPubKey;
-
-			PubKeyHash = PubKey.Hash;
-			HashCode = PubKeyHash.GetHashCode();
-
-			Index = (int)FullKeyPath.Indexes[4];
-			NonHardenedKeyPath = new KeyPath(FullKeyPath[3], FullKeyPath[4]);
-
-			int change = (int)FullKeyPath.Indexes[3];
-			if (change == 0)
-			{
-				IsInternal = false;
-			}
-			else if (change == 1)
-			{
-				IsInternal = true;
-			}
-			else throw new ArgumentException(nameof(FullKeyPath));
 		}
 
 		public void SetLabel(string label, KeyManager kmToFile = null)
@@ -81,42 +45,104 @@ namespace WalletWasabi.KeyManagement
 		{
 			if (KeyState == state) return;
 			KeyState = state;
-
 			kmToFile?.ToFile();
 		}
 
-		public Script P2pkScript { get; }
-		public Script P2pkhScript { get; }
-		public Script P2wpkhScript { get; }
-		public Script P2shOverP2wpkhScript { get; }
+		private Script _p2pkScript = null;
 
-		public KeyId PubKeyHash { get; }
+		public Script GetP2pkScript()
+		{
+			return _p2pkScript ?? (_p2pkScript = PubKey.ScriptPubKey);
+		}
 
-		public int Index { get; }
-		public KeyPath NonHardenedKeyPath { get; }
-		public bool IsInternal { get; }
+		private Script _p2pkhScript = null;
 
-		public bool HasLabel { get; private set; }
+		public Script GetP2pkhScript()
+		{
+			return _p2pkhScript ?? (_p2pkhScript = PubKey.Hash.ScriptPubKey);
+		}
+
+		private Script _p2wpkhScript = null;
+
+		public Script GetP2wpkhScript()
+		{
+			return _p2wpkhScript ?? (_p2wpkhScript = PubKey.WitHash.ScriptPubKey);
+		}
+
+		private Script _p2shOverP2wpkhScript = null;
+
+		public Script GetP2shOverP2wpkhScript()
+		{
+			return _p2shOverP2wpkhScript ?? (_p2shOverP2wpkhScript = GetP2wpkhScript().Hash.ScriptPubKey);
+		}
 
 		public BitcoinPubKeyAddress GetP2pkhAddress(Network network) => PubKey.GetAddress(network);
 
 		public BitcoinWitPubKeyAddress GetP2wpkhAddress(Network network) => PubKey.GetSegwitAddress(network);
 
-		public BitcoinScriptAddress GetP2shOverP2wpkhAddress(Network network) => P2wpkhScript.GetScriptAddress(network);
+		public BitcoinScriptAddress GetP2shOverP2wpkhAddress(Network network) => GetP2wpkhScript().GetScriptAddress(network);
+
+		private int? _index = null;
+
+		public int GetIndex()
+		{
+			return (int)(_index ?? (_index = (int)FullKeyPath.Indexes[4]));
+		}
+
+		private KeyPath _nonHardenedKeyPath = null;
+
+		public KeyPath GetNonHardenedKeyPath()
+		{
+			return _nonHardenedKeyPath ?? (_nonHardenedKeyPath = new KeyPath(FullKeyPath[3], FullKeyPath[4]));
+		}
+
+		private bool? _isInternal = null;
+
+		public bool IsInternal()
+		{
+			if (_isInternal is null)
+			{
+				int change = (int)FullKeyPath.Indexes[3];
+				if (change == 0)
+				{
+					_isInternal = false;
+				}
+				else if (change == 1)
+				{
+					_isInternal = true;
+				}
+				else throw new ArgumentException(nameof(FullKeyPath));
+			}
+			return (bool)_isInternal;
+		}
+
+		public bool HasLabel() => !string.IsNullOrEmpty(Label);
 
 		#region Equality
+
+		// speedup
+		private KeyId _pubKeyHash = null;
+
+		public KeyId GetPubKeyHash()
+		{
+			return _pubKeyHash ?? (_pubKeyHash = PubKey.Hash);
+		}
 
 		public override bool Equals(object obj) => obj is HdPubKey && this == (HdPubKey)obj;
 
 		public bool Equals(HdPubKey other) => this == other;
 
-		private int HashCode { get; }
+		// speedup
+		private int? _hashCode = null;
 
-		public override int GetHashCode() => HashCode;
+		public override int GetHashCode()
+		{
+			return (int)(_hashCode ?? (_hashCode = PubKey.Hash.GetHashCode()));
+		}
 
 		public static bool operator ==(HdPubKey x, HdPubKey y)
 		{
-			return x?.PubKeyHash == y?.PubKeyHash;
+			return x?.GetPubKeyHash() == y?.GetPubKeyHash();
 		}
 
 		public static bool operator !=(HdPubKey x, HdPubKey y)

@@ -9,10 +9,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile></DocumentationFile>
-    <DebugType>none</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <ErrorReport>none</ErrorReport>
+    <DocumentationFile>bin\Release\netcoreapp2.2\WalletWasabi.xml</DocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -20,7 +17,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NBitcoin" Version="4.1.1.86" />
+    <PackageReference Include="NBitcoin" Version="4.1.1.80" />
   </ItemGroup>
 
   <ItemGroup>

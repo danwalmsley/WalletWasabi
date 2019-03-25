@@ -19,9 +19,9 @@ namespace Nito.AsyncEx
 		/// <returns><c>true</c> if this method completed the task completion source; <c>false</c> if it was already completed.</returns>
 		public static bool TryCompleteFromCompletedTask<TResult, TSourceResult>(this TaskCompletionSource<TResult> @this, Task<TSourceResult> task) where TSourceResult : TResult
 		{
-			if (@this is null)
+			if (@this == null)
 				throw new ArgumentNullException(nameof(@this));
-			if (task is null)
+			if (task == null)
 				throw new ArgumentNullException(nameof(task));
 
 			if (task.IsFaulted)
@@ -51,11 +51,11 @@ namespace Nito.AsyncEx
 		/// <returns><c>true</c> if this method completed the task completion source; <c>false</c> if it was already completed.</returns>
 		public static bool TryCompleteFromCompletedTask<TResult>(this TaskCompletionSource<TResult> @this, Task task, Func<TResult> resultFunc)
 		{
-			if (@this is null)
+			if (@this == null)
 				throw new ArgumentNullException(nameof(@this));
-			if (task is null)
+			if (task == null)
 				throw new ArgumentNullException(nameof(task));
-			if (resultFunc is null)
+			if (resultFunc == null)
 				throw new ArgumentNullException(nameof(resultFunc));
 
 			if (task.IsFaulted)

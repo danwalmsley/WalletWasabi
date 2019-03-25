@@ -1,18 +1,24 @@
-﻿using Avalonia.Threading;
-using AvalonStudio.Extensibility;
-using AvalonStudio.Shell;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using NBitcoin.Protocol;
 using ReactiveUI;
-using System;
-using System.Reactive.Disposables;
-using System.Reactive.Linq;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using WalletWasabi.Gui.Dialogs;
-using WalletWasabi.Gui.Tabs;
-using WalletWasabi.Models;
 using WalletWasabi.Services;
+using Avalonia.Data.Converters;
+using System.Globalization;
+using WalletWasabi.Models;
+using NBitcoin;
+using System.Threading.Tasks;
+using System.Threading;
+using Avalonia.Threading;
+using AvalonStudio.Extensibility;
+using AvalonStudio.Shell;
+using WalletWasabi.Gui.Tabs;
+using System.Reactive.Linq;
+using WalletWasabi.Gui.Dialogs;
+using System.Runtime.InteropServices;
+using System.Reactive.Disposables;
+using System.ComponentModel;
 
 namespace WalletWasabi.Gui.ViewModels
 {
@@ -23,136 +29,13 @@ namespace WalletWasabi.Gui.ViewModels
 		Critical
 	}
 
-	public class StatusBarViewModel : ViewModelBase
+	public class StatusBarViewModel : ViewModelBase, IDisposable
 	{
-		private CompositeDisposable Disposables { get; }
+		public NodesCollection Nodes { get; }
+		public WasabiSynchronizer Synchronizer { get; }
+		public UpdateChecker UpdateChecker { get; }
 
 		private UpdateStatus _updateStatus;
-		private bool _updateAvailable;
-		private bool _criticalUpdateAvailable;
-		private BackendStatus _backend;
-		private TorStatus _tor;
-		private int _peers;
-		private int _filtersLeft;
-		private int _blocksLeft;
-		private string _btcPrice;
-		private string _status;
-		private long _clientOutOfDate;
-		private long _backendIncompatible;
-
-		public StatusBarViewModel(NodesCollection nodes, WasabiSynchronizer synchronizer, UpdateChecker updateChecker)
-		{
-			Disposables = new CompositeDisposable();
-
-			_clientOutOfDate = 0;
-			_backendIncompatible = 0;
-
-			UpdateStatus = UpdateStatus.Latest;
-			Peers = nodes.Count;
-			BlocksLeft = 0;
-			FiltersLeft = synchronizer.GetFiltersLeft();
-
-			Observable.FromEventPattern<NodeEventArgs>(nodes, nameof(nodes.Added))
-				.Subscribe(x =>
-				{
-					Peers = nodes.Count;
-				}).DisposeWith(Disposables);
-
-			Observable.FromEventPattern<NodeEventArgs>(nodes, nameof(nodes.Removed))
-				.Subscribe(x =>
-				{
-					Peers = nodes.Count;
-				}).DisposeWith(Disposables);
-
-			Observable.FromEventPattern<int>(typeof(WalletService), nameof(WalletService.ConcurrentBlockDownloadNumberChanged))
-				.Subscribe(x =>
-				{
-					BlocksLeft = x.EventArgs;
-				}).DisposeWith(Disposables);
-
-			Observable.FromEventPattern(synchronizer, nameof(synchronizer.NewFilter)).Subscribe(x =>
-			{
-				FiltersLeft = synchronizer.GetFiltersLeft();
-			}).DisposeWith(Disposables);
-
-			synchronizer.WhenAnyValue(x => x.TorStatus).Subscribe(_ =>
-			{
-				Tor = synchronizer.TorStatus;
-			}).DisposeWith(Disposables);
-
-			synchronizer.WhenAnyValue(x => x.BackendStatus).Subscribe(_ =>
-			{
-				Backend = synchronizer.BackendStatus;
-			}).DisposeWith(Disposables);
-
-			synchronizer.WhenAnyValue(x => x.BestBlockchainHeight).Subscribe(_ =>
-			{
-				FiltersLeft = synchronizer.GetFiltersLeft();
-			}).DisposeWith(Disposables);
-
-			synchronizer.WhenAnyValue(x => x.UsdExchangeRate).Subscribe(_ =>
-			{
-				BtcPrice = $"${(long)synchronizer.UsdExchangeRate}";
-			}).DisposeWith(Disposables);
-
-			Observable.FromEventPattern<bool>(synchronizer, nameof(synchronizer.ResponseArrivedIsGenSocksServFail))
-				.Subscribe(e =>
-				{
-					OnResponseArrivedIsGenSocksServFail(e.EventArgs);
-				}).DisposeWith(Disposables);
-
-			this.WhenAnyValue(x => x.BlocksLeft).Subscribe(blocks =>
-			{
-				SetStatusAndDoUpdateActions();
-			});
-
-			this.WhenAnyValue(x => x.FiltersLeft).Subscribe(filters =>
-			{
-				SetStatusAndDoUpdateActions();
-			});
-
-			this.WhenAnyValue(x => x.Tor).Subscribe(tor =>
-			{
-				SetStatusAndDoUpdateActions();
-			});
-
-			this.WhenAnyValue(x => x.Backend).Subscribe(backend =>
-			{
-				SetStatusAndDoUpdateActions();
-			});
-
-			this.WhenAnyValue(x => x.Peers).Subscribe(peers =>
-			{
-				SetStatusAndDoUpdateActions();
-			});
-
-			UpdateCommand = ReactiveCommand.Create(() =>
-			{
-				IoC.Get<IShell>().AddOrSelectDocument(() => new AboutViewModel());
-			}, this.WhenAnyValue(x => x.UpdateStatus).Select(x => x != UpdateStatus.Latest));
-
-			updateChecker.Start(TimeSpan.FromMinutes(7),
-				() =>
-				{
-					Interlocked.Exchange(ref _backendIncompatible, 1);
-					Dispatcher.UIThread.PostLogException(() =>
-					{
-						SetStatusAndDoUpdateActions();
-					});
-					return Task.CompletedTask;
-				},
-				() =>
-				{
-					Interlocked.Exchange(ref _clientOutOfDate, 1);
-					Dispatcher.UIThread.PostLogException(() =>
-					{
-						SetStatusAndDoUpdateActions();
-					});
-					return Task.CompletedTask;
-				});
-		}
-
-		public ReactiveCommand UpdateCommand { get; }
 
 		public UpdateStatus UpdateStatus
 		{
@@ -173,11 +56,17 @@ namespace WalletWasabi.Gui.ViewModels
 			}
 		}
 
+		public ReactiveCommand UpdateCommand { get; }
+
+		private bool _updateAvailable;
+
 		public bool UpdateAvailable
 		{
 			get => _updateAvailable;
 			set => this.RaiseAndSetIfChanged(ref _updateAvailable, value);
 		}
+
+		private bool _criticalUpdateAvailable;
 
 		public bool CriticalUpdateAvailable
 		{
@@ -185,11 +74,15 @@ namespace WalletWasabi.Gui.ViewModels
 			set => this.RaiseAndSetIfChanged(ref _criticalUpdateAvailable, value);
 		}
 
+		private BackendStatus _backend;
+
 		public BackendStatus Backend
 		{
 			get => _backend;
 			set => this.RaiseAndSetIfChanged(ref _backend, value);
 		}
+
+		private TorStatus _tor;
 
 		public TorStatus Tor
 		{
@@ -197,17 +90,23 @@ namespace WalletWasabi.Gui.ViewModels
 			set => this.RaiseAndSetIfChanged(ref _tor, value);
 		}
 
+		private int _peers;
+
 		public int Peers
 		{
 			get => _peers;
 			set => this.RaiseAndSetIfChanged(ref _peers, value);
 		}
 
+		private int _filtersLeft;
+
 		public int FiltersLeft
 		{
 			get => _filtersLeft;
 			set => this.RaiseAndSetIfChanged(ref _filtersLeft, value);
 		}
+
+		private int _blocksLeft;
 
 		public int BlocksLeft
 		{
@@ -221,18 +120,112 @@ namespace WalletWasabi.Gui.ViewModels
 			set => this.RaiseAndSetIfChanged(ref _btcPrice, value);
 		}
 
+		private string _status;
+
 		public string Status
 		{
 			get => _status;
 			set => this.RaiseAndSetIfChanged(ref _status, value);
 		}
 
-		private void OnResponseArrivedIsGenSocksServFail(bool isGenSocksServFail)
+		private long _clientOutOfDate;
+		private long _backendIncompatible;
+
+		public StatusBarViewModel(NodesCollection nodes, WasabiSynchronizer synchronizer, UpdateChecker updateChecker)
+		{
+			_clientOutOfDate = 0;
+			_backendIncompatible = 0;
+			UpdateStatus = UpdateStatus.Latest;
+
+			Nodes = nodes;
+			Nodes.Added += Nodes_Added;
+			Nodes.Removed += Nodes_Removed;
+			Peers = Nodes.Count;
+
+			BlocksLeft = 0;
+			WalletService.ConcurrentBlockDownloadNumberChanged += WalletService_ConcurrentBlockDownloadNumberChanged;
+
+			Synchronizer = synchronizer;
+			UpdateChecker = updateChecker;
+			Synchronizer.NewFilter += IndexDownloader_NewFilter;
+			Synchronizer.PropertyChanged += Synchronizer_PropertyChanged;
+			Synchronizer.ResponseArrivedIsGenSocksServFail += IndexDownloader_ResponseArrivedIsGenSocksServFail;
+
+			FiltersLeft = Synchronizer.GetFiltersLeft();
+
+			this.WhenAnyValue(x => x.BlocksLeft).Subscribe(blocks =>
+			{
+				SetStatusAndDoUpdateActions();
+			});
+			this.WhenAnyValue(x => x.FiltersLeft).Subscribe(filters =>
+			{
+				SetStatusAndDoUpdateActions();
+			});
+			this.WhenAnyValue(x => x.Tor).Subscribe(tor =>
+			{
+				SetStatusAndDoUpdateActions();
+			});
+			this.WhenAnyValue(x => x.Backend).Subscribe(backend =>
+			{
+				SetStatusAndDoUpdateActions();
+			});
+			this.WhenAnyValue(x => x.Peers).Subscribe(peers =>
+			{
+				SetStatusAndDoUpdateActions();
+			});
+
+			UpdateChecker.Start(TimeSpan.FromMinutes(7),
+				() =>
+				{
+					Interlocked.Exchange(ref _backendIncompatible, 1);
+					Dispatcher.UIThread.Post(() =>
+					{
+						SetStatusAndDoUpdateActions();
+					});
+					return Task.CompletedTask;
+				},
+				() =>
+				{
+					Interlocked.Exchange(ref _clientOutOfDate, 1);
+					Dispatcher.UIThread.Post(() =>
+					{
+						SetStatusAndDoUpdateActions();
+					});
+					return Task.CompletedTask;
+				});
+
+			UpdateCommand = ReactiveCommand.Create(() =>
+			{
+				IoC.Get<IShell>().AddOrSelectDocument(() => new AboutViewModel());
+			}, this.WhenAnyValue(x => x.UpdateStatus).Select(x => x != UpdateStatus.Latest));
+		}
+
+		private void Synchronizer_PropertyChanged(object sender, PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == nameof(Synchronizer.TorStatus))
+			{
+				Tor = Synchronizer.TorStatus;
+			}
+			else if (e.PropertyName == nameof(Synchronizer.BackendStatus))
+			{
+				Backend = Synchronizer.BackendStatus;
+			}
+			else if (e.PropertyName == nameof(Synchronizer.BestBlockchainHeight))
+			{
+				FiltersLeft = Synchronizer.GetFiltersLeft();
+			}
+			else if (e.PropertyName == nameof(Synchronizer.UsdExchangeRate))
+			{
+				BtcPrice = $"${(long)Synchronizer.UsdExchangeRate}";
+			}
+		}
+
+		private void IndexDownloader_ResponseArrivedIsGenSocksServFail(object sender, bool isGenSocksServFail)
 		{
 			if (isGenSocksServFail)
 			{
 				// Is close band present?
-				if (MainWindowViewModel.Instance.ModalDialog != null)
+				if (!(MainWindowViewModel.Instance.ModalDialog is null))
 				{
 					// Do nothing.
 				}
@@ -250,7 +243,7 @@ namespace WalletWasabi.Gui.ViewModels
 			else
 			{
 				// Is close band present?
-				if (MainWindowViewModel.Instance.ModalDialog != null)
+				if (!(MainWindowViewModel.Instance.ModalDialog is null))
 				{
 					// Is it GenSocksServFail dialog?
 					if (MainWindowViewModel.Instance.ModalDialog is GenSocksServFailDialogViewModel)
@@ -267,6 +260,11 @@ namespace WalletWasabi.Gui.ViewModels
 					// Do nothing.
 				}
 			}
+		}
+
+		private void WalletService_ConcurrentBlockDownloadNumberChanged(object sender, int concurrentBlockDownloadNumber)
+		{
+			BlocksLeft = concurrentBlockDownloadNumber;
 		}
 
 		private void SetStatusAndDoUpdateActions()
@@ -295,9 +293,25 @@ namespace WalletWasabi.Gui.ViewModels
 			}
 		}
 
+		private void IndexDownloader_NewFilter(object sender, Backend.Models.FilterModel e)
+		{
+			FiltersLeft = Synchronizer.GetFiltersLeft();
+		}
+
+		private void Nodes_Removed(object sender, NodeEventArgs e)
+		{
+			Peers = Nodes.Count;
+		}
+
+		private void Nodes_Added(object sender, NodeEventArgs e)
+		{
+			Peers = Nodes.Count;
+		}
+
 		#region IDisposable Support
 
 		private volatile bool _disposedValue = false; // To detect redundant calls
+		private string _btcPrice;
 
 		protected virtual void Dispose(bool disposing)
 		{
@@ -305,12 +319,21 @@ namespace WalletWasabi.Gui.ViewModels
 			{
 				if (disposing)
 				{
-					Disposables?.Dispose();
+					Nodes.Added -= Nodes_Added;
+					Nodes.Removed -= Nodes_Removed;
+					Synchronizer.NewFilter -= IndexDownloader_NewFilter;
+					Synchronizer.PropertyChanged -= Synchronizer_PropertyChanged;
+					Synchronizer.ResponseArrivedIsGenSocksServFail -= IndexDownloader_ResponseArrivedIsGenSocksServFail;
 				}
 
 				_disposedValue = true;
 			}
 		}
+
+		// ~StatusBarViewModel() {
+		//   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+		//   Dispose(false);
+		// }
 
 		// This code added to correctly implement the disposable pattern.
 		public void Dispose()

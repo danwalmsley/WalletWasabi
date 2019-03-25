@@ -1,88 +1,82 @@
-﻿using Avalonia;
-using Avalonia.Threading;
-using NBitcoin;
+﻿using NBitcoin;
 using ReactiveUI;
 using System;
 using System.Globalization;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Reactive.Disposables;
 using WalletWasabi.Gui.ViewModels;
 
 namespace WalletWasabi.Gui.Controls.WalletExplorer
 {
-	public class TransactionViewModel : ViewModelBase
+	public class TransactionViewModel : ViewModelBase, IDisposable
 	{
 		private TransactionInfo _model;
-		private bool _clipboardNotificationVisible;
-		private double _clipboardNotificationOpacity;
-		private long _copyNotificationsInprocess = 0;
+		private CompositeDisposable Disposables { get; }
 
 		public TransactionViewModel(TransactionInfo model)
 		{
+			Disposables = new CompositeDisposable();
 			_model = model;
-			ClipboardNotificationVisible = false;
-			ClipboardNotificationOpacity = 0;
+
+			_confirmed = model.WhenAnyValue(x => x.Confirmed).ToProperty(this, x => x.Confirmed, model.Confirmed).DisposeWith(Disposables);
 		}
 
-		public void Refresh ()
+		private readonly ObservableAsPropertyHelper<bool> _confirmed;
+
+		public string DateTime
 		{
-			this.RaisePropertyChanged(nameof(AmountBtc));
-			this.RaisePropertyChanged(nameof(TransactionId));
-			this.RaisePropertyChanged(nameof(DateTime));
+			get { return _model.DateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture); }
 		}
 
-		public string DateTime => _model.DateTime.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
-
-		public bool Confirmed => _model.Confirmed;
-
-		public string AmountBtc => _model.AmountBtc;
-
-		public Money Amount => Money.TryParse(_model.AmountBtc, out Money money) ? money : Money.Zero;
-
-		public string Label => _model.Label;
-
-		public string TransactionId => _model.TransactionId;
-
-		public bool ClipboardNotificationVisible
+		public bool Confirmed
 		{
-			get => _clipboardNotificationVisible;
-			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationVisible, value);
+			get { return _confirmed.Value; }
 		}
 
-		public double ClipboardNotificationOpacity
+		public string AmountBtc
 		{
-			get => _clipboardNotificationOpacity;
-			set => this.RaiseAndSetIfChanged(ref _clipboardNotificationOpacity, value);
+			get => _model.AmountBtc;
 		}
 
-		public void CopyToClipboard()
+		public Money Amount
 		{
-			Application.Current.Clipboard.SetTextAsync(TransactionId).GetAwaiter().GetResult();
+			get => Money.TryParse(_model.AmountBtc, out Money money) ? money : Money.Zero;
+		}
 
-			Interlocked.Increment(ref _copyNotificationsInprocess);
-			ClipboardNotificationVisible = true;
-			ClipboardNotificationOpacity = 1;
+		public string Label
+		{
+			get => _model.Label;
+		}
 
-			Dispatcher.UIThread.PostLogException(async () =>
+		public string TransactionId
+		{
+			get => _model.TransactionId;
+		}
+
+		#region IDisposable Support
+
+		private volatile bool _disposedValue = false; // To detect redundant calls
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!_disposedValue)
 			{
-				try
+				if (disposing)
 				{
-					await Task.Delay(1000);
-					if (Interlocked.Read(ref _copyNotificationsInprocess) <= 1)
-					{
-						ClipboardNotificationOpacity = 0;
-						await Task.Delay(1000);
-						if (Interlocked.Read(ref _copyNotificationsInprocess) <= 1)
-						{
-							ClipboardNotificationVisible = false;
-						}
-					}
+					Disposables?.Dispose();
 				}
-				finally
-				{
-					Interlocked.Decrement(ref _copyNotificationsInprocess);
-				}
-			});
+
+				_model = null;
+				_disposedValue = true;
+			}
 		}
+
+		// This code added to correctly implement the disposable pattern.
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+			Dispose(true);
+		}
+
+		#endregion IDisposable Support
 	}
 }

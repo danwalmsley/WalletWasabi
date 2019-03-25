@@ -40,11 +40,10 @@ namespace WalletWasabi.TorSocks5
 
 		public static Exception LatestTorException { get; private set; } = null;
 
-		public Uri DestinationUri => DestinationUriAction();
-		public Func<Uri> DestinationUriAction { get; private set; }
-		public IPEndPoint TorSocks5EndPoint { get; private set; }
+		public Uri DestinationUri { get; }
+		public IPEndPoint TorSocks5EndPoint { get; }
 
-		public bool IsolateStream { get; private set; }
+		public bool IsolateStream { get; }
 
 		public TorSocks5Client TorSocks5Client { get; private set; }
 
@@ -52,25 +51,14 @@ namespace WalletWasabi.TorSocks5
 
 		public TorHttpClient(Uri baseUri, IPEndPoint torSocks5EndPoint, bool isolateStream = false)
 		{
-			baseUri = Guard.NotNull(nameof(baseUri), baseUri);
-			Create(torSocks5EndPoint, isolateStream, () => baseUri);
-		}
-
-		public TorHttpClient(Func<Uri> baseUriAction, IPEndPoint torSocks5EndPoint, bool isolateStream = false)
-		{
-			Create(torSocks5EndPoint, isolateStream, baseUriAction);
-		}
-
-		private void Create(IPEndPoint torSocks5EndPoint, bool isolateStream, Func<Uri> baseUriAction)
-		{
-			DestinationUriAction = Guard.NotNull(nameof(baseUriAction), baseUriAction);
+			DestinationUri = Guard.NotNull(nameof(baseUri), baseUri);
 			if (DestinationUri.IsLoopback)
 			{
 				TorSocks5EndPoint = null;
 			}
 			else
 			{
-				TorSocks5EndPoint = torSocks5EndPoint;
+				TorSocks5EndPoint = torSocks5EndPoint ?? new IPEndPoint(IPAddress.Loopback, 9050);
 			}
 			TorSocks5Client = null;
 			IsolateStream = isolateStream;
@@ -85,7 +73,7 @@ namespace WalletWasabi.TorSocks5
 			relativeUri = Guard.NotNull(nameof(relativeUri), relativeUri);
 			var requestUri = new Uri(DestinationUri, relativeUri);
 			var request = new HttpRequestMessage(method, requestUri);
-			if (content != null)
+			if (!(content is null))
 			{
 				request.Content = content;
 			}
@@ -155,7 +143,7 @@ namespace WalletWasabi.TorSocks5
 
 		private static void SetTorNotWorkingState(Exception ex)
 		{
-			if (TorDoesntWorkSince is null)
+			if (TorDoesntWorkSince == null)
 			{
 				TorDoesntWorkSince = DateTimeOffset.UtcNow;
 			}
@@ -179,7 +167,7 @@ namespace WalletWasabi.TorSocks5
 			// in forwarded messages.
 			request.Version = HttpProtocol.HTTP11.Version;
 
-			if (TorSocks5Client != null && !TorSocks5Client.IsConnected)
+			if (!(TorSocks5Client is null) && !TorSocks5Client.IsConnected)
 			{
 				TorSocks5Client?.Dispose();
 				TorSocks5Client = null;

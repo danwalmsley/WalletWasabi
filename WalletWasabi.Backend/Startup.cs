@@ -65,7 +65,7 @@ namespace WalletWasabi.Backend
 			// Enable middleware to serve swagger-ui (HTML, JS, CSS, etc.), specifying the Swagger JSON endpoint.
 			app.UseSwaggerUI(c =>
 			{
-				c.SwaggerEndpoint($"/swagger/v{Constants.BackendMajorVersion}/swagger.json", "Wasabi Wallet API V3");
+				c.SwaggerEndpoint($"/swagger/v{Constants.BackendMajorVersion}/swagger.json", "Wasabi Wallet API V2");
 			});
 
 			// So to correctly handle HEAD requests.
@@ -93,7 +93,7 @@ namespace WalletWasabi.Backend
 
 			var stopTasks = new List<Task>();
 
-			if (Global.IndexBuilderService != null)
+			if (!(Global.IndexBuilderService is null))
 			{
 				Global.IndexBuilderService.NewBlock -= Global.IndexBuilderService_NewBlockAsync;
 
@@ -101,7 +101,7 @@ namespace WalletWasabi.Backend
 				stopTasks.Add(t);
 			}
 
-			if (Global.RoundConfigWatcher != null)
+			if (!(Global.RoundConfigWatcher is null))
 			{
 				var t = Global.RoundConfigWatcher.StopAsync();
 				stopTasks.Add(t);

@@ -1,14 +1,17 @@
-﻿using Avalonia;
+﻿using System.Composition;
 using Avalonia.Controls;
 using Avalonia.Diagnostics;
 using AvalonStudio.Commands;
 using AvalonStudio.Extensibility;
 using AvalonStudio.Shell;
+using NBitcoin;
 using ReactiveUI;
-using System.Composition;
 using System.Linq;
 using System.Reactive.Linq;
 using WalletWasabi.Gui.Tabs;
+using WalletWasabi.KeyManagement;
+using WalletWasabi.Gui.Tabs.WalletManager;
+using Avalonia;
 
 namespace WalletWasabi.Gui.Shell.Commands
 {
@@ -89,6 +92,10 @@ namespace WalletWasabi.Gui.Shell.Commands
 #endif
 		}
 
+		private void OnGenerateWallet()
+		{
+		}
+
 		[ExportCommandDefinition("Help.About")]
 		public CommandDefinition AboutCommand { get; }
 
@@ -108,10 +115,8 @@ namespace WalletWasabi.Gui.Shell.Commands
 		public CommandDefinition LegalIssuesCommand { get; }
 
 #if DEBUG
-
 		[ExportCommandDefinition("Help.DevTools")]
 		public CommandDefinition DevToolsCommand { get; }
-
 #endif
 	}
 }
