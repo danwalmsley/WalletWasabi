@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Reactive;
 using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
@@ -25,9 +26,9 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		private int _caretIndex;
 		private ObservableCollection<SuggestionViewModel> _suggestions;
 
-		public ReactiveCommand CopyAddress { get; }
-		public ReactiveCommand CopyLabel { get; }
-		public ReactiveCommand ShowQrCode { get; }
+		public ReactiveCommand<Unit, Unit> CopyAddress { get; }
+		public ReactiveCommand<Unit, Unit> CopyLabel { get; }
+		public ReactiveCommand<Unit, Unit> ShowQrCode { get; }
 
 		public ReceiveTabViewModel(WalletViewModel walletViewModel)
 			: base("Receive", walletViewModel)
@@ -86,7 +87,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 			var isCoinListItemSelected = this.WhenAnyValue(x => x.SelectedAddress).Select(coin => coin != null);
 
-			CopyAddress = ReactiveCommand.Create(() =>
+			CopyAddress = ReactiveCommand.CreateFromTask(async () =>
 			{
 				if (SelectedAddress is null) return;
 				SelectedAddress.CopyToClipboard();
@@ -235,6 +236,6 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			Suggestions.Clear();
 		}
 
-		public ReactiveCommand GenerateCommand { get; }
+		public ReactiveCommand<Unit, Unit> GenerateCommand { get; }
 	}
 }

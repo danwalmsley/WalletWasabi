@@ -90,7 +90,7 @@ namespace WalletWasabi.Gui
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				result
-					.UseWin32(true, true)
+					.UseWin32()
 					.UseSkia();
 			}
 			else
@@ -98,7 +98,11 @@ namespace WalletWasabi.Gui
 				result.UsePlatformDetect();
 			}
 
-			return result;
+			return result
+				.With(new Win32PlatformOptions { AllowEglInitialization = true, UseDeferredRendering = true })
+				.With(new X11PlatformOptions { UseGpu = true, UseEGL = true })
+				.With(new AvaloniaNativePlatformOptions { UseDeferredRendering = true, UseGpu = true })
+				.With(new MacOSPlatformOptions { ShowInDock = true });
 		}
 	}
 }
