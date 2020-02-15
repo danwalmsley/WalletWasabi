@@ -150,5 +150,22 @@ namespace WalletWasabi.Gui
 				}
 			}
 		}
+
+		protected override Size MeasureOverride(Size availableSize)
+		{
+			if (true)
+			{
+				availableSize = PlatformImpl?.ClientSize ?? default;
+			}
+
+			var rv = base.MeasureOverride(availableSize);
+			
+			if (true)
+			{
+				return availableSize;
+			}
+
+			return rv;
+		}
 	}
 }
