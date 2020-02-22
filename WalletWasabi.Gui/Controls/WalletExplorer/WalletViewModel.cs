@@ -26,7 +26,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 		public Guid Id { get; set; } = Guid.NewGuid();
 
-		public WalletService WalletService { get; }
+		internal WalletService WalletService { get; }
 
 		public bool IsExpanded
 		{
@@ -56,23 +56,23 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 			// If hardware wallet then we need the Send tab.
 			if (WalletService?.KeyManager?.IsHardwareWallet is true)
 			{
-				sendTab = new SendTabViewModel(this);
+				sendTab = new SendTabViewModel(WalletService, this);
 				Actions.Add(sendTab);
 			}
 			// If not hardware wallet, but neither watch only then we also need the send tab.
 			else if (WalletService?.KeyManager?.IsWatchOnly is false)
 			{
-				sendTab = new SendTabViewModel(this);
+				sendTab = new SendTabViewModel(WalletService, this);
 				Actions.Add(sendTab);
 			}
 
-			var receiveTab = new ReceiveTabViewModel(this);
-			var coinjoinTab = new CoinJoinTabViewModel(this);
-			var historyTab = new HistoryTabViewModel(this);
+			var receiveTab = new ReceiveTabViewModel(WalletService, this);
+			var coinjoinTab = new CoinJoinTabViewModel(WalletService, this);
+			var historyTab = new HistoryTabViewModel(WalletService, this);
 
 			var advancedAction = new WalletAdvancedViewModel(this);
-			var infoTab = new WalletInfoViewModel(this);
-			var buildTab = new BuildTabViewModel(this);
+			var infoTab = new WalletInfoViewModel(WalletService, this);
+			var buildTab = new BuildTabViewModel(WalletService, this);
 
 			Actions.Add(receiveTab);
 			Actions.Add(coinjoinTab);
