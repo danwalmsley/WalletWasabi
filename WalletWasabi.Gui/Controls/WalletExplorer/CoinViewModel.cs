@@ -44,9 +44,9 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		public CoinViewModel(WalletService walletService, CoinListViewModel owner, SmartCoin model)
 		{
 			Global = Locator.Current.GetService<Global>();
+			Model = model;
 			WalletService = walletService;
-
-			Model = model;			
+			
 			Owner = owner;
 
 			RefreshSmartCoinStatus();
