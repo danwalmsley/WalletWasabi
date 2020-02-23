@@ -34,7 +34,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 		private CompositeDisposable Disposables { get; set; }
 
 		public SourceList<CoinViewModel> RootList { get; private set; }
-		
+
 		private ReadOnlyObservableCollection<CoinViewModel> _coinViewModels;
 		private SortExpressionComparer<CoinViewModel> _myComparer;
 
@@ -258,7 +258,7 @@ namespace WalletWasabi.Gui.Controls.WalletExplorer
 
 			AmountSortDirection = SortOrder.Decreasing;
 
-			CoinJoinStatusWidth = new GridLength(0);			
+			CoinJoinStatusWidth = new GridLength(0);
 			CanDequeueCoins = canDequeueCoins;
 			DisplayCommonOwnershipWarning = displayCommonOwnershipWarning;
 
