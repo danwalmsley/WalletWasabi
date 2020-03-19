@@ -7,11 +7,8 @@ using ReactiveUI;
 using Splat;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reactive;
 using System.Reactive.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using WalletWasabi.Gui.Controls.LockScreen;
 using WalletWasabi.Gui.Tabs.WalletManager;
@@ -23,8 +20,6 @@ namespace WalletWasabi.Gui.ViewModels
 		private ModalDialogViewModelBase _modalDialog;
 		private bool _canClose = true;
 		private string _title = "Wasabi Wallet";
-		private double _height;
-		private double _width;
 		private WindowState _windowState;
 		private StatusBarViewModel _statusBar;
 		private LockScreenViewModelBase _lockScreen;
@@ -42,18 +37,9 @@ namespace WalletWasabi.Gui.ViewModels
 
 			_menuVisible = true;
 
-			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-			{
-				var uiConfig = global.UiConfig;
+			var uiConfig = global.UiConfig;
 
-				Width = uiConfig.Width;
-				Height = uiConfig.Height;
-				WindowState = uiConfig.WindowState;
-			}
-			else
-			{
-				WindowState = WindowState.Maximized;
-			}
+			WindowState = uiConfig.WindowState;
 
 			InitializeLockScreen(global.UiConfig);
 
@@ -66,18 +52,6 @@ namespace WalletWasabi.Gui.ViewModels
 		{
 			get => _title;
 			internal set => this.RaiseAndSetIfChanged(ref _title, value);
-		}
-
-		public double Height
-		{
-			get => _height;
-			set => this.RaiseAndSetIfChanged(ref _height, value);
-		}
-
-		public double Width
-		{
-			get => _width;
-			set => this.RaiseAndSetIfChanged(ref _width, value);
 		}
 
 		public WindowState WindowState
