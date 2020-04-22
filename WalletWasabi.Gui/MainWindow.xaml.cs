@@ -26,9 +26,6 @@ namespace WalletWasabi.Gui
 			Global = Locator.Current.GetService<Global>();
 
 			InitializeComponent();
-#if DEBUG
-			this.AttachDevTools();
-#endif
 
 			var notificationManager = new WindowNotificationManager(this)
 			{

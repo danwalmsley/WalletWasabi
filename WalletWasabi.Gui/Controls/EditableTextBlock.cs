@@ -33,11 +33,6 @@ namespace WalletWasabi.Gui.Controls
 		public static readonly StyledProperty<bool> ReadOnlyModeProperty =
 			AvaloniaProperty.Register<EditableTextBlock, bool>(nameof(ReadOnlyMode), defaultValue: true, defaultBindingMode: BindingMode.TwoWay);
 
-		static EditableTextBlock()
-		{
-			PseudoClass<EditableTextBlock>(InEditModeProperty, ":editing");
-		}
-
 		public EditableTextBlock()
 		{
 			EditClickTimer = new DispatcherTimer
@@ -218,6 +213,16 @@ namespace WalletWasabi.Gui.Controls
 #pragma warning disable CS0618 // Type or member is obsolete
 			_root.MouseDevice.Capture(null);
 #pragma warning restore CS0618 // Type or member is obsolete
+		}
+
+		protected override void OnPropertyChanged<T>(AvaloniaProperty<T> property, Optional<T> oldValue, BindingValue<T> newValue, BindingPriority priority)
+		{
+			base.OnPropertyChanged(property, oldValue, newValue, priority);
+
+			if (property == InEditModeProperty)
+			{
+				PseudoClasses.Set(":editing", newValue.GetValueOrDefault<bool>());
+			}
 		}
 	}
 }

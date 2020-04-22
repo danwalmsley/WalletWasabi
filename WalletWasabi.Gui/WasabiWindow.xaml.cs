@@ -9,9 +9,6 @@ namespace WalletWasabi.Gui
 		public WasabiWindow()
 		{
 			InitializeComponent();
-#if DEBUG
-			this.AttachDevTools();
-#endif
 		}
 
 		private void InitializeComponent()

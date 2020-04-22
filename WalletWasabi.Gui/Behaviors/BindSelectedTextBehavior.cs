@@ -17,7 +17,7 @@ namespace WalletWasabi.Gui.Behaviors
 
 		public string SelectedText
 		{
-			get => GetValue(SelectedTextProperty);
+			get => (string)GetValue(SelectedTextProperty);
 			set => SetValue(SelectedTextProperty, value);
 		}
 

@@ -16,7 +16,7 @@ namespace WalletWasabi.Gui.Behaviors
 
 		public bool IsFocused
 		{
-			get => GetValue(IsFocusedProperty);
+			get => (bool)GetValue(IsFocusedProperty);
 			set => SetValue(IsFocusedProperty, value);
 		}
 

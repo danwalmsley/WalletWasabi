@@ -33,15 +33,15 @@ namespace WalletWasabi.Gui.Shell.Commands
 				IoC.Get<IShell>().AddOrSelectDocument(() => new TransactionBroadcasterViewModel()));
 
 #if DEBUG
-			var devToolsCommand = ReactiveCommand.Create(() =>
-				DevToolsExtensions.OpenDevTools((Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow));
+			//var devToolsCommand = ReactiveCommand.Create(() =>
+				//DevToolsExtensions.OpenDevTools((Application.Current.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime).MainWindow));
 #endif
 			Observable
 				.Merge(walletManagerCommand.ThrownExceptions)
 				.Merge(settingsCommand.ThrownExceptions)
 				.Merge(transactionBroadcasterCommand.ThrownExceptions)
 #if DEBUG
-				.Merge(devToolsCommand.ThrownExceptions)
+				//.Merge(devToolsCommand.ThrownExceptions)
 #endif
 				.ObserveOn(RxApp.TaskpoolScheduler)
 				.Subscribe(ex => Logger.LogError(ex));
@@ -62,10 +62,10 @@ namespace WalletWasabi.Gui.Shell.Commands
 				transactionBroadcasterCommand);
 
 #if DEBUG
-			DevToolsCommand = new CommandDefinition(
-				"Dev Tools",
-				commandIconService.GetCompletionKindImage("DevTools"),
-				devToolsCommand);
+			//DevToolsCommand = new CommandDefinition(
+			//	"Dev Tools",
+			//	commandIconService.GetCompletionKindImage("DevTools"),
+			//	devToolsCommand);
 #endif
 		}
 

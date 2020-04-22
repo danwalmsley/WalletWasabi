@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Xaml.Interactivity;
 using System;
 using System.Collections.Generic;
@@ -18,7 +19,7 @@ namespace WalletWasabi.Gui.Suggestions
 
 		public IEnumerable<SuggestionViewModel> SuggestionItems
 		{
-			get => GetValue(SuggestionItemsProperty);
+			get => (IEnumerable<SuggestionViewModel>)GetValue(SuggestionItemsProperty);
 			set => SetValue(SuggestionItemsProperty, value);
 		}
 
@@ -30,7 +31,7 @@ namespace WalletWasabi.Gui.Suggestions
 
 			base.OnAttached();
 
-			Disposables.Add(AssociatedObject.AddHandler(
+			Disposables.Add(AssociatedObject.AddDisposableHandler(
 				InputElement.KeyDownEvent,
 				(sender, e) =>
 				{
