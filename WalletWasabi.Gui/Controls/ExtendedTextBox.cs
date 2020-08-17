@@ -208,7 +208,7 @@ namespace WalletWasabi.Gui.Controls
 
 			Disposables?.Dispose();
 		}
-		
+
 		private void CreatePasteItem()
 		{
 			if (_pasteItem != null)
