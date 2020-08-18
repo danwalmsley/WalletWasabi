@@ -8,6 +8,7 @@
         xmlns:controls="clr-namespace:WalletWasabi.Gui.Controls;assembly=WalletWasabi.Gui">
   <Style>
     <Style.Resources>
+      <StaticResource x:Key="UiFont" ResourceKey="ContentControlThemeFontFamily" />
       <SolidColorBrush x:Key="ThemeAccentBrush">#007ACC</SolidColorBrush>
       <SolidColorBrush x:Key="HyperLinkForeground">#00A2E8</SolidColorBrush>
       <SolidColorBrush x:Key="ErrorBrush">#F25022</SolidColorBrush>
