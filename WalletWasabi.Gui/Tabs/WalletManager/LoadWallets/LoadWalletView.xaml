@@ -12,7 +12,7 @@
             <StackPanel>
               <TextBlock Text="Select a wallet to test its password!" FontWeight="Bold" />
             </StackPanel>
-            <TextBox Classes="revealPasswordBox" Text="{Binding Password}">
+            <TextBox Classes="revealPasswordButton" PasswordChar="*" Text="{Binding Password}">
               <i:Interaction.Behaviors>
                 <behaviors:CommandOnEnterBehavior Command="{Binding LoadCommand}" />
               </i:Interaction.Behaviors>

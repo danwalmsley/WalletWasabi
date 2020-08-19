@@ -23,7 +23,7 @@
                   TextWrapping="Wrap" />
               </StackPanel>
               <TextBox Text="{Binding WalletName}" Watermark="Wallet Name" UseFloatingWatermark="True" />
-              <TextBox Classes="revealPasswordBox" Text="{Binding Password}">
+              <TextBox Classes="revealPasswordButton" PasswordChar="*" Text="{Binding Password}">
                 <i:Interaction.Behaviors>
                   <behaviors:CommandOnEnterBehavior Command="{Binding RecoverCommand}" />
                 </i:Interaction.Behaviors>

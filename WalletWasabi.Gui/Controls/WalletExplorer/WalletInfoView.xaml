@@ -22,7 +22,7 @@
         <Grid Width="{Binding #root.Bounds.Width}" Classes="content">
           <StackPanel Orientation="Vertical" Spacing="16" Margin="20">
             <StackPanel IsVisible="{Binding !IsWatchOnly}" Margin="0 10 0 0" Spacing="10" Orientation="Horizontal">
-              <TextBox Classes="revealPasswordBox" Text="{Binding Password}" MaxWidth="600" IsVisible="{Binding !ShowSensitiveKeys}">
+              <TextBox Classes="revealPasswordButton" PasswordChar="*" Text="{Binding Password}" MaxWidth="600" IsVisible="{Binding !ShowSensitiveKeys}">
                 <i:Interaction.Behaviors>
                   <behaviors:CommandOnEnterBehavior Command="{Binding ToggleSensitiveKeysCommand}" />
                 </i:Interaction.Behaviors>

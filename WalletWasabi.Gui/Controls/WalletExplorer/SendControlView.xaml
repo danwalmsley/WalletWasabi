@@ -97,7 +97,7 @@
             </StackPanel>
           </StackPanel>
           <StackPanel Spacing="10" Orientation="Horizontal">
-            <TextBox Classes="revealPasswordBox" Text="{Binding Password}" IsVisible="{Binding !IsWatchOnly}" MaxWidth = "600">
+            <TextBox Classes="revealPasswordButton" PasswordChar="*" Text="{Binding Password}" IsVisible="{Binding !IsWatchOnly}" MaxWidth = "600">
               <i:Interaction.Behaviors>
                 <behaviors:CommandOnEnterBehavior Command="{Binding BuildTransactionCommand}" />
               </i:Interaction.Behaviors>
