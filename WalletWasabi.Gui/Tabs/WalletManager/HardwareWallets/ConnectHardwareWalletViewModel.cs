@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using ReactiveUI;
 using Splat;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -419,6 +420,9 @@ namespace WalletWasabi.Gui.Tabs.WalletManager.HardwareWallets
 					var walletEntry = new HardwareWalletViewModel(dev);
 					Wallets.Add(walletEntry);
 				}
+
+				Wallets.Add(new HardwareWalletViewModel("1"));
+				Wallets.Add(new HardwareWalletViewModel("2"));
 			}
 			finally
 			{

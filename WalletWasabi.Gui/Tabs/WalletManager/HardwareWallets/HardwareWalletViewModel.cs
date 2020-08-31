@@ -35,6 +35,11 @@ namespace WalletWasabi.Gui.Tabs.WalletManager.HardwareWallets
 			HardwareWalletInfo = hwi;
 		}
 
+		public HardwareWalletViewModel(string name)
+		{
+			WalletName = name;
+		}
+
 		public string WalletName { get; }
 		public HwiEnumerateEntry HardwareWalletInfo { get; }
 
