@@ -22,7 +22,7 @@
       </controls:GroupBox>
       <DockPanel LastChildFill="True" Margin="20 10">
         <Button IsVisible="{Binding IsPasswordRequired}" Content="Test Password" Command="{Binding TestPasswordCommand}" DockPanel.Dock="Right" Margin="10 0 0 0" />
-        <Button Command="{Binding LoadCommand}" Content="Load Wallet" DockPanel.Dock="Right" />
+        <Button Classes="accent" Command="{Binding LoadCommand}" Content="Load Wallet" DockPanel.Dock="Right" />
         <Button IsVisible="{Binding IsDesktopWallet}" Command="{Binding OpenFolderCommand}" DockPanel.Dock="Right" Margin="0 0 10 0">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <DrawingPresenter Drawing="{DynamicResource FolderOpen}" />

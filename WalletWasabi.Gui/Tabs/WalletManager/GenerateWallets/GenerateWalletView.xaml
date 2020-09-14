@@ -22,7 +22,7 @@
       </Grid>
     </controls:GroupBox>
     <DockPanel LastChildFill="True">
-      <Button Content="Next" Command="{Binding NextCommand}" DockPanel.Dock="Right" />
+      <Button Classes="accent" Content="Generate" Command="{Binding NextCommand}" DockPanel.Dock="Right" />
       <Panel/>
     </DockPanel>
   </StackPanel>
