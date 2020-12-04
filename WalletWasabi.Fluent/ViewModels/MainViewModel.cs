@@ -17,7 +17,7 @@ namespace WalletWasabi.Fluent.ViewModels
 {
 	public partial class MainViewModel : ViewModelBase, IDialogHost
 	{
-		private readonly Global _global;
+		private Global _global;
 		[AutoNotify] private bool _isMainContentEnabled;
 		[AutoNotify] private bool _isDialogScreenEnabled;
 		[AutoNotify] private DialogViewModelBase? _currentDialog;
@@ -25,61 +25,32 @@ namespace WalletWasabi.Fluent.ViewModels
 		[AutoNotify] private NavBarViewModel _navBar;
 		[AutoNotify] private StatusBarViewModel _statusBar;
 		[AutoNotify] private string _title = "Wasabi Wallet";
-		private readonly HomePageViewModel _homePage;
-		private readonly SettingsPageViewModel _settingsPage;
+		private HomePageViewModel _homePage;
+		private SettingsPageViewModel _settingsPage;
 		private readonly SearchPageViewModel _searchPage;
-		private readonly PrivacyModeViewModel _privacyMode;
-		private readonly AddWalletPageViewModel _addWalletPage;
+		private PrivacyModeViewModel _privacyMode;
+		private AddWalletPageViewModel _addWalletPage;
 
-		public MainViewModel(Global global)
+		public MainViewModel()
 		{
-			_global = global;
-
 			_dialogScreen = new DialogScreenViewModel();
 
 			MainScreen = new TargettedNavigationStack(NavigationTarget.HomeScreen);
 
 			NavigationState.Register(MainScreen, DialogScreen, () => this);
 
-			Network = global.Network;
-
 			_currentDialog = null;
 
 			_isMainContentEnabled = true;
 			_isDialogScreenEnabled = true;
 
-			_statusBar = new StatusBarViewModel(
-				global.DataDir,
-				global.Network,
-				global.Config,
-				global.HostedServices,
-				global.BitcoinStore.SmartHeaderChain,
-				global.Synchronizer,
-				global.LegalDocuments);
+			_statusBar = new StatusBarViewModel();
 
-			var walletManager = new WalletManagerViewModel(global.WalletManager, global.UiConfig);
 
-			_addWalletPage = new AddWalletPageViewModel(
-				global.LegalDocuments,
-				global.WalletManager,
-				global.BitcoinStore,
-				global.Network);
-
-			_settingsPage = new SettingsPageViewModel(global.Config, global.UiConfig);
-			_privacyMode = new PrivacyModeViewModel(global.UiConfig);
-			_homePage = new HomePageViewModel(walletManager, _addWalletPage);
 			_searchPage = new SearchPageViewModel();
 
-			_navBar = new NavBarViewModel(MainScreen, walletManager);
-
-			RegisterCategories(_searchPage);
-			RegisterViewModels();
-
-			RxApp.MainThreadScheduler.Schedule(async () => await _navBar.InitialiseAsync());
-
-			_searchPage.Initialise();
-
-			MainScreen.To(_homePage);
+			_navBar = new NavBarViewModel(MainScreen);
+			_navBar.IsHidden = true;
 
 			this.WhenAnyValue(x => x.DialogScreen!.IsDialogOpen)
 				.ObserveOn(RxApp.MainThreadScheduler)
@@ -89,18 +60,21 @@ namespace WalletWasabi.Fluent.ViewModels
 				.ObserveOn(RxApp.MainThreadScheduler)
 				.Subscribe(x => IsDialogScreenEnabled = !x);
 
-			walletManager.WhenAnyValue(x => x.Items.Count)
-				.Subscribe(x => _navBar.IsHidden = x == 0);
+			MainScreen.To(new AboutViewModel() { IsBusy = true });
 		}
 
 		public TargettedNavigationStack MainScreen { get; }
 
 		public static MainViewModel? Instance { get; internal set; }
 
-		private Network Network { get; }
+		private Network Network { get; set; }
 
-		public void Initialize()
+		public void Initialize(Global global)
 		{
+			_global = global;
+
+			Network = global.Network;
+
 			// Temporary to keep things running without VM modifications.
 			MainWindowViewModel.Instance = new MainWindowViewModel(
 				_global.Network,
@@ -110,12 +84,47 @@ namespace WalletWasabi.Fluent.ViewModels
 				null!,
 				false);
 
-			StatusBar.Initialize(_global.Nodes.ConnectedNodes);
+			var walletManager = new WalletManagerViewModel(global.WalletManager, global.UiConfig);
+
+			_settingsPage = new SettingsPageViewModel(global.Config, global.UiConfig);
+			_privacyMode = new PrivacyModeViewModel(global.UiConfig);
+
+			_navBar.Initialise(walletManager);
+
+			_addWalletPage = new AddWalletPageViewModel(
+				global.LegalDocuments,
+				global.WalletManager,
+				global.BitcoinStore,
+				global.Network);
+
+			_homePage = new HomePageViewModel(walletManager, _addWalletPage);
+
+			StatusBar.Initialise(
+				global.DataDir,
+				global.Network,
+				global.Config,
+				global.HostedServices,
+				global.BitcoinStore.SmartHeaderChain,
+				global.Synchronizer,
+				global.LegalDocuments);
+			StatusBar?.Initialize(_global.Nodes.ConnectedNodes);
 
 			if (Network != Network.Main)
 			{
 				Title += $" - {Network}";
 			}
+
+			RegisterCategories(_searchPage);
+			RegisterViewModels();
+
+			RxApp.MainThreadScheduler.Schedule(async () => await _navBar.InitialiseAsync());
+
+			_searchPage.Initialise();
+
+			walletManager.WhenAnyValue(x => x.Items.Count)
+				.Subscribe(x => _navBar.IsHidden = x == 0);
+
+			MainScreen.To(_homePage, NavigationMode.Clear);
 		}
 
 		private void RegisterViewModels()

@@ -50,7 +50,18 @@ namespace WalletWasabi.Gui.ViewModels
 
 		private volatile bool _disposedValue = false; // To detect redundant calls
 
-		public StatusBarViewModel(string dataDir, Network network, Config config, HostedServices hostedServices, SmartHeaderChain smartHeaderChain, WasabiSynchronizer synchronizer, LegalDocuments? legalDocuments)
+		public StatusBarViewModel()
+		{
+			Backend = BackendStatus.NotConnected;
+			UseTor = false;
+			Tor = TorStatus.NotRunning;
+			Peers = 0;
+			_exchangeRate = "";
+			IsExchangeRateAvailable = false;
+			ActiveStatuses = new StatusSet();
+		}
+
+		public void Initialise(string dataDir, Network network, Config config, HostedServices hostedServices, SmartHeaderChain smartHeaderChain, WasabiSynchronizer synchronizer, LegalDocuments? legalDocuments)
 		{
 			DataDir = dataDir;
 			Network = network;
@@ -59,13 +70,6 @@ namespace WalletWasabi.Gui.ViewModels
 			SmartHeaderChain = smartHeaderChain;
 			Synchronizer = synchronizer;
 			LegalDocuments = legalDocuments;
-			Backend = BackendStatus.NotConnected;
-			UseTor = false;
-			Tor = TorStatus.NotRunning;
-			Peers = 0;
-			_exchangeRate = "";
-			IsExchangeRateAvailable = false;
-			ActiveStatuses = new StatusSet();
 		}
 
 		private CompositeDisposable Disposables { get; } = new CompositeDisposable();
@@ -78,18 +82,18 @@ namespace WalletWasabi.Gui.ViewModels
 
 		public ReactiveCommand<Unit, Unit> UpdateCommand { get; set; }
 
-		public string DataDir { get; }
+		public string DataDir { get; private set; }
 
 		[SuppressMessage("CodeQuality", "IDE0052:Remove unread private members", Justification = "Network affects status bar background color.")]
-		private Network Network { get; }
+		private Network Network { get; set; }
 
-		private Config Config { get; }
+		private Config Config { get; set; }
 
-		private HostedServices HostedServices { get; }
+		private HostedServices HostedServices { get; set; }
 
-		private SmartHeaderChain SmartHeaderChain { get; }
+		private SmartHeaderChain SmartHeaderChain { get; set; }
 
-		private LegalDocuments? LegalDocuments { get; }
+		private LegalDocuments? LegalDocuments { get; set; }
 
 		public bool UseBitcoinCore
 		{

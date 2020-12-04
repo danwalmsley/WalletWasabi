@@ -6,8 +6,10 @@ using Avalonia.Threading;
 using Splat;
 using System;
 using System.IO;
+using System.Reactive.Concurrency;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using ReactiveUI;
 using WalletWasabi.Fluent.Helpers;
 using WalletWasabi.Fluent.ViewModels;
 using WalletWasabi.Gui;
@@ -40,15 +42,13 @@ namespace WalletWasabi.Fluent.Desktop
 
 			try
 			{
-				Global = CreateGlobal();
-				Locator.CurrentMutable.RegisterConstant(Global);
-				Locator.CurrentMutable.RegisterConstant(CrashReporter);
+
 
 				//Platform.BaseDirectory = Path.Combine(Global.DataDir, "Gui");
 				AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 				TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
-				runGui = ProcessCliCommands(args);
+				//runGui = ProcessCliCommands(args);
 
 				if (CrashReporter.IsReport)
 				{
@@ -56,15 +56,14 @@ namespace WalletWasabi.Fluent.Desktop
 					return;
 				}
 
-				if (runGui)
+				if (true)
 				{
 					Logger.LogSoftwareStarted("Wasabi GUI");
 
 					BuildAvaloniaApp()
 						.AfterSetup(_ =>
 						{
-							ThemeHelper.ApplyTheme(Global!.UiConfig.DarkModeEnabled);
-							AppMainAsync(args);
+							ThemeHelper.ApplyTheme(true);//Global!.UiConfig.DarkModeEnabled);
 						})
 						.StartWithClassicDesktopLifetime(args);
 				}
@@ -75,23 +74,7 @@ namespace WalletWasabi.Fluent.Desktop
 				throw;
 			}
 
-			TerminateAppAndHandleException(appException, runGui);
-		}
-
-		private static Global CreateGlobal()
-		{
-			string dataDir = EnvironmentHelpers.GetDataDir(Path.Combine("WalletWasabi", "Client"));
-			Directory.CreateDirectory(dataDir);
-			string torLogsFile = Path.Combine(dataDir, "TorLogs.txt");
-
-			var uiConfig = new UiConfig(Path.Combine(dataDir, "UiConfig.json"));
-			uiConfig.LoadOrCreateDefaultFile();
-			var config = new Config(Path.Combine(dataDir, "Config.json"));
-			config.LoadOrCreateDefaultFile();
-			config.CorrectMixUntilAnonymitySet();
-			var walletManager = new WalletManager(config.Network, new WalletDirectories(dataDir));
-
-			return new Global(dataDir, torLogsFile, config, uiConfig, walletManager);
+			TerminateAppAndHandleException(appException, true);
 		}
 
 		private static bool ProcessCliCommands(string[] args)
@@ -104,23 +87,6 @@ namespace WalletWasabi.Fluent.Desktop
 				new PasswordFinderCommand(Global!.WalletManager),
 				new CrashReportCommand(CrashReporter));
 			return executionTask.GetAwaiter().GetResult();
-		}
-
-		private static async void AppMainAsync(string[] args)
-		{
-			try
-			{
-				await Global!.InitializeNoWalletAsync(TerminateService);
-
-				MainViewModel.Instance!.Initialize();
-
-				Dispatcher.UIThread.Post(GC.Collect);
-			}
-			catch (Exception ex)
-			{
-				// There is no other way to stop the creation of the WasabiWindow, we have to exit the application here instead of return to Main.
-				TerminateAppAndHandleException(ex, true);
-			}
 		}
 
 		/// <summary>
@@ -198,7 +164,7 @@ namespace WalletWasabi.Fluent.Desktop
 		{
 			bool useGpuLinux = true;
 
-			var result = AppBuilder.Configure(() => new App(Global!))
+			var result = AppBuilder.Configure(() => new App(TerminateService))
 				.UseReactiveUI();
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

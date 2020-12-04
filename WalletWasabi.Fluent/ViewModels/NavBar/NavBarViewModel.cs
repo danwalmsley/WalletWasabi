@@ -21,7 +21,7 @@ namespace WalletWasabi.Fluent.ViewModels.NavBar
 		[AutoNotify] private ObservableCollection<NavBarItemViewModel> _topItems;
 		[AutoNotify] private ObservableCollection<NavBarItemViewModel> _bottomItems;
 		private NavBarItemViewModel? _selectedItem;
-		private readonly WalletManagerViewModel _walletManager;
+		private WalletManagerViewModel _walletManager;
 		[AutoNotify] private bool _isBackButtonVisible;
 		private bool _isNavigating;
 		[AutoNotify] private bool _isOpen;
@@ -31,15 +31,15 @@ namespace WalletWasabi.Fluent.ViewModels.NavBar
 		[AutoNotify] private double _currentCompactPaneLength;
 		[AutoNotify] private bool _isHidden;
 
-		public NavBarViewModel(TargettedNavigationStack mainScreen, WalletManagerViewModel walletManager)
+		public NavBarViewModel(TargettedNavigationStack mainScreen)
 		{
-			_walletManager = walletManager;
 			_topItems = new ObservableCollection<NavBarItemViewModel>();
 			_bottomItems = new ObservableCollection<NavBarItemViewModel>();
 
 			mainScreen.WhenAnyValue(x => x.CurrentPage)
 				.OfType<NavBarItemViewModel>()
-				.Subscribe(x => CurrentPageChanged(x, walletManager));
+				.Subscribe(x => CurrentPageChanged(x, _walletManager));
+
 
 			this.WhenAnyValue(x => x.SelectedItem)
 				.OfType<NavBarItemViewModel>()
@@ -63,7 +63,16 @@ namespace WalletWasabi.Fluent.ViewModels.NavBar
 				});
 		}
 
-		public ObservableCollection<WalletViewModelBase> Items => _walletManager.Items;
+		public void Initialise(WalletManagerViewModel walletManager)
+		{
+			_walletManager = walletManager;
+
+			this.RaisePropertyChanged(nameof(Items));
+			this.RaisePropertyChanged(nameof(TopItems));
+			this.RaisePropertyChanged(nameof(BottomItems));
+		}
+
+		public ObservableCollection<WalletViewModelBase> Items => _walletManager?.Items;
 
 		public NavBarItemViewModel? SelectedItem
 		{
@@ -184,6 +193,11 @@ namespace WalletWasabi.Fluent.ViewModels.NavBar
 
 		private void CurrentPageChanged(NavBarItemViewModel x, WalletManagerViewModel walletManager)
 		{
+			if (walletManager is null)
+			{
+				return;
+			}
+
 			if (walletManager.Items.Contains(x) || _topItems.Contains(x) || _bottomItems.Contains(x))
 			{
 				if (!_isNavigating && x.SelectionMode == NavBarItemSelectionMode.Selected)
