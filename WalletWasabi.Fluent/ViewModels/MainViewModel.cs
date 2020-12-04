@@ -107,7 +107,6 @@ namespace WalletWasabi.Fluent.ViewModels
 				global.BitcoinStore.SmartHeaderChain,
 				global.Synchronizer,
 				global.LegalDocuments);
-			StatusBar?.Initialize(_global.Nodes.ConnectedNodes);
 
 			if (Network != Network.Main)
 			{

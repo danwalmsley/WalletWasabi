@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Reactive.Concurrency;
 using System.Threading.Tasks;
@@ -68,9 +69,11 @@ namespace WalletWasabi.Fluent
 				Locator.CurrentMutable.RegisterConstant(_global);
 				Locator.CurrentMutable.RegisterConstant(_crashReporter);
 
+				MainViewModel.Instance!.Initialize(_global);
+
 				await _global.InitializeNoWalletAsync(_terminateService);
 
-				MainViewModel.Instance!.Initialize(_global);
+				MainViewModel.Instance.StatusBar.Initialize(_global.Nodes.ConnectedNodes);
 
 				Dispatcher.UIThread.Post(GC.Collect);
 			}
@@ -88,22 +91,25 @@ namespace WalletWasabi.Fluent
 			if (!Design.IsDesignMode)
 			{
 				MainViewModel.Instance = new MainViewModel();
-
 				if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 				{
 					desktop.MainWindow = new MainWindow
 					{
-						DataContext = MainViewModel.Instance
+						//DataContext = MainViewModel.Instance
 					};
-				}
 
+					RxApp.MainThreadScheduler.Schedule(
+						() =>
+						{
+							desktop.MainWindow.DataContext = MainViewModel.Instance;
+						});
+				}
 				RxApp.MainThreadScheduler.Schedule(
 					async () =>
 					{
 						await InitialiseAsync();
 					});
 			}
-
 			base.OnFrameworkInitializationCompleted();
 		}
 
