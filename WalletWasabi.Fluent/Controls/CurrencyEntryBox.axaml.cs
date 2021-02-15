@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reactive.Disposables;
@@ -8,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using WalletWasabi.Helpers;
@@ -152,6 +154,39 @@ namespace WalletWasabi.Fluent.Controls
 			CaretIndex = Text?.Length ?? 0;
 
 			Dispatcher.UIThread.Post(SelectAll);
+		}
+
+		protected override void OnKeyDown(KeyEventArgs e)
+		{
+			var keymap = AvaloniaLocator.Current.GetService<PlatformHotkeyConfiguration>();
+
+			bool Match(List<KeyGesture> gestures) => gestures.Any(g => g.Matches(e));
+
+			if (Match(keymap.Paste))
+			{
+				PreCheckPaste();
+				return;
+			}
+
+
+			base.OnKeyDown(e);
+		}
+
+		private async void  PreCheckPaste()
+		{
+			var text = await ((IClipboard)AvaloniaLocator.Current.GetService(typeof(IClipboard))).GetTextAsync();
+
+			if (text is null)
+			{
+				return;
+			}
+
+			// check text...
+
+			if (true) // acceptable or modified is acceptable
+			{
+				base.OnTextInput(new TextInputEventArgs {Text = text});
+			}
 		}
 
 		protected override void OnTextInput(TextInputEventArgs e)
