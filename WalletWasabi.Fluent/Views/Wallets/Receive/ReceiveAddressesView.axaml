@@ -62,6 +62,13 @@
                         ToolTip.Tip="Hide address">
                   <PathIcon Data="{StaticResource dismiss_light}" Classes=" addressActionIcon"/>
                 </Button>
+
+                <Button Classes="plain addressActionButton" Command="{Binding SendToCommand}"
+                        DockPanel.Dock="Right"
+                        ToolTip.Tip="Send To Self">
+                  <PathIcon Data="{StaticResource wallet_action_send}" Classes=" addressActionIcon"/>
+                </Button>
+
                 <c:AnimatedButton Classes="addressActionButton" DockPanel.Dock="Right"
                                   ToolTip.Tip="Copy"
                                   Command="{Binding CopyAddressCommand}"
@@ -73,6 +80,7 @@
                         ToolTip.Tip="QR Code">
                   <PathIcon Data="{StaticResource qr_code_regular}" Classes=" addressActionIcon"/>
                 </Button>
+
                 <TextBox Classes="selectableTextBlock" Text="{Binding Address}" VerticalAlignment="Center" />
               </DockPanel>
             </DataTemplate>

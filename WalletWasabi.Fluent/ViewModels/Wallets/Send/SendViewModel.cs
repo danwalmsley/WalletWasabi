@@ -85,6 +85,7 @@ namespace WalletWasabi.Fluent.ViewModels.Wallets.Send
 			this.ValidateProperty(x => x.AmountBtc, ValidateAmount);
 
 			this.WhenAnyValue(x => x.To)
+				.Skip(1)
 				.Subscribe(ParseToField);
 
 			this.WhenAnyValue(x => x.AmountBtc)
@@ -411,14 +412,7 @@ namespace WalletWasabi.Fluent.ViewModels.Wallets.Send
 
 		protected override void OnNavigatedTo(bool inHistory, CompositeDisposable disposables)
 		{
-			if (!inHistory)
-			{
-				To = "";
-				AmountBtc = 0;
-				Labels.Clear();
-				ClearValidations();
-			}
-			else
+			if (inHistory)
 			{
 				XAxisCurrentValue = _lastXAxisCurrentValue;
 			}

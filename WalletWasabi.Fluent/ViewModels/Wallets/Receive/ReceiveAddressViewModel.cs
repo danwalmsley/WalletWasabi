@@ -11,6 +11,7 @@ using ReactiveUI;
 using WalletWasabi.Blockchain.Analysis.Clustering;
 using WalletWasabi.Blockchain.Keys;
 using WalletWasabi.Fluent.ViewModels.Navigation;
+using WalletWasabi.Fluent.ViewModels.Wallets.Send;
 using WalletWasabi.Hwi;
 using WalletWasabi.Logging;
 using WalletWasabi.Wallets;
@@ -42,6 +43,14 @@ namespace WalletWasabi.Fluent.ViewModels.Wallets.Receive
 			SaveQrCodeCommand.ThrownExceptions
 				.ObserveOn(RxApp.TaskpoolScheduler)
 				.Subscribe(ex => Logger.LogError(ex));
+
+			SendToCommand = ReactiveCommand.Create(() =>
+			{
+				Navigate().To(new SendViewModel(wallet)
+				{
+					To = Address
+				});
+			});
 
 			NextCommand = CancelCommand;
 		}
@@ -90,6 +99,8 @@ namespace WalletWasabi.Fluent.ViewModels.Wallets.Receive
 		public ReactiveCommand<Unit, Unit> SaveQrCodeCommand { get; }
 
 		public ICommand ShowOnHwWalletCommand { get; }
+
+		public ICommand SendToCommand { get; }
 
 		public string Address { get; }
 
