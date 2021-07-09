@@ -112,6 +112,22 @@
               HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
       <ContentControl Content="{Binding CurrentPage}" />
     </c:Dialog>
-    <colorPicker:ColorPicker Width="400" Height="400" x:Name="ColorPicker" IsAlphaEnabled="True" />
+
+    <DockPanel LastChildFill="True" Margin="400,0,0,0" Background="White">
+      <StackPanel Orientation="Vertical">
+        <TextBlock>Color</TextBlock>
+        <TextBox
+          Text="{Binding #ColorPicker.Color, Mode=OneWay}" />
+
+        <TextBlock>TintOpacitySlider</TextBlock>
+        <TextBox
+          Text="{Binding #TintOpacitySlider.Value, Mode=OneWay}" />
+
+        <TextBlock>MaterialOpacitySlider</TextBlock>
+        <TextBox
+          Text="{Binding #MaterialOpacitySlider.Value, Mode=OneWay}" />
+      </StackPanel>
+      <colorPicker:ColorPicker x:Name="ColorPicker" IsAlphaEnabled="True" />
+    </DockPanel>
   </Panel>
 </UserControl>
