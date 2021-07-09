@@ -3,11 +3,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:c="using:WalletWasabi.Fluent.Controls"
-             xmlns:navbar="using:WalletWasabi.Fluent.Views.NavBar"
              xmlns:i="using:Avalonia.Xaml.Interactivity"
              xmlns:behaviors="using:WalletWasabi.Fluent.Behaviors"
              xmlns:vm="using:WalletWasabi.Fluent.ViewModels"
              xmlns:statusBar="clr-namespace:WalletWasabi.Fluent.Views.StatusBar"
+             xmlns:colorPicker="clr-namespace:AvaloniaWinUI.ColorPicker;assembly=AvaloniaWinUI.ColorPicker"
              mc:Ignorable="d" d:DesignWidth="536" d:DesignHeight="459"
              x:DataType="vm:MainViewModel"
              x:CompileBindings="True"
@@ -28,7 +28,7 @@
           <ExperimentalAcrylicBorder DockPanel.Dock="Left" IsHitTestVisible="False">
             <ExperimentalAcrylicBorder.Material>
               <ExperimentalAcrylicMaterial BackgroundSource="Digger"
-                                           TintColor="Blue"
+                                           TintColor="{Binding #ColorPicker.Color}"
                                            TintOpacity="{Binding #TintOpacitySlider.Value}"
                                            FallbackColor="{DynamicResource AcrylicFallbackColor}"
                                            MaterialOpacity="{Binding #MaterialOpacitySlider.Value}" />
@@ -36,7 +36,8 @@
           </ExperimentalAcrylicBorder>
           <StackPanel>
             <Slider x:Name="TintOpacitySlider" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.1" Value="1" />
-            <Slider x:Name="MaterialOpacitySlider" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.1" Value="1" />
+            <Slider x:Name="MaterialOpacitySlider" Minimum="0" Maximum="1" LargeChange="0.1" SmallChange="0.1"
+                    Value="1" />
           </StackPanel>
         </Panel>
       </SplitView.Pane>
@@ -111,5 +112,6 @@
               HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
       <ContentControl Content="{Binding CurrentPage}" />
     </c:Dialog>
+    <colorPicker:ColorPicker Width="400" Height="400" x:Name="ColorPicker" IsAlphaEnabled="True" />
   </Panel>
 </UserControl>

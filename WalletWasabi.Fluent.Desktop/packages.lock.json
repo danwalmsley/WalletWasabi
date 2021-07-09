@@ -984,6 +984,12 @@
           "System.Security.Principal.Windows": "4.7.0"
         }
       },
+      "avaloniawinui.colorpicker": {
+        "type": "Project",
+        "dependencies": {
+          "Avalonia": "0.10.0"
+        }
+      },
       "walletwasabi": {
         "type": "Project",
         "dependencies": {
@@ -1000,6 +1006,7 @@
           "Avalonia.Diagnostics": "0.10.999-cibuild0014678-beta",
           "Avalonia.ReactiveUI": "0.10.999-cibuild0014678-beta",
           "Avalonia.Xaml.Behaviors": "0.10.6",
+          "AvaloniaWinUI.ColorPicker": "1.0.0",
           "WalletWasabi": "1.0.0",
           "Wasabi Wallet": "1.0.0"
         }

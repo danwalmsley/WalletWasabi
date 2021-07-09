@@ -1,5 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media;
+using AvaloniaWinUI.ColorPicker;
 
 namespace WalletWasabi.Fluent.Views
 {
@@ -8,6 +10,9 @@ namespace WalletWasabi.Fluent.Views
 		public MainView()
 		{
 			InitializeComponent();
+			var ColorPicker = this.FindControl<ColorPicker>("ColorPicker");
+
+			ColorPicker.Color = Colors.Red;
 		}
 
 		private void InitializeComponent()

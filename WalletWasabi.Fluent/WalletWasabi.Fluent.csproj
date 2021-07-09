@@ -22,9 +22,10 @@
 		<PackageReference Include="Avalonia.Xaml.Behaviors" Version="0.10.6" />
 	</ItemGroup>
 	<ItemGroup>
-		<ProjectReference Include="..\WalletWasabi.Gui\WalletWasabi.Gui.csproj" />
-		<ProjectReference Include="..\WalletWasabi\WalletWasabi.csproj" />
-		<ProjectReference Include="..\WalletWasabi.Fluent.Generators\WalletWasabi.Fluent.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\AvaloniaWinUI.ColorPicker\AvaloniaWinUI.ColorPicker.csproj"/>
+		<ProjectReference Include="..\WalletWasabi.Gui\WalletWasabi.Gui.csproj"/>
+		<ProjectReference Include="..\WalletWasabi\WalletWasabi.csproj"/>
+		<ProjectReference Include="..\WalletWasabi.Fluent.Generators\WalletWasabi.Fluent.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
 	</ItemGroup>
 
 	<ItemGroup>

@@ -2088,6 +2088,12 @@
           "System.Security.Principal.Windows": "4.5.0"
         }
       },
+      "avaloniawinui.colorpicker": {
+        "type": "Project",
+        "dependencies": {
+          "Avalonia": "0.10.0"
+        }
+      },
       "walletwasabi": {
         "type": "Project",
         "dependencies": {
