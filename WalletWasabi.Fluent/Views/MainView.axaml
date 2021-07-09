@@ -28,7 +28,7 @@
           <ExperimentalAcrylicBorder DockPanel.Dock="Left" IsHitTestVisible="False">
             <ExperimentalAcrylicBorder.Material>
               <ExperimentalAcrylicMaterial BackgroundSource="Digger"
-                                           TintColor="{DynamicResource NavBarTintColor}"
+                                           TintColor="Blue"
                                            TintOpacity="{Binding #TintOpacitySlider.Value}"
                                            FallbackColor="{DynamicResource AcrylicFallbackColor}"
                                            MaterialOpacity="{Binding #MaterialOpacitySlider.Value}" />
