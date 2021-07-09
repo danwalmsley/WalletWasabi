@@ -12,7 +12,7 @@ namespace WalletWasabi.Fluent.Views
 			InitializeComponent();
 			var ColorPicker = this.FindControl<ColorPicker>("ColorPicker");
 
-			ColorPicker.Color = Color.Parse("#89134074");
+			ColorPicker.Color = Color.Parse("#134074");
 		}
 
 		private void InitializeComponent()
