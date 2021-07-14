@@ -37,15 +37,15 @@
             </Style>
           </StackPanel.Styles>
           <TextBlock TextWrapping="Wrap">
-            Being put in a position to trust someone is always uncomfortable. Especially regarding personal information or your money. This is why Wasabi Wallet is trustless by design.
+            Being put in a position to trust someone is always uncomfortable. Especially regarding personal information or your money. This is why Wasabi Wallet is trustless by design. It does not, did not and never will collect information about you.
           </TextBlock>
 
           <TextBlock>
-            We do not, have not and we never will collect information from you. We live in a world where your information is being used to typecast, manipulate and surveil you. What you do with your Bitcoin is your business.
+            We live in a world where your information is being used to typecast, manipulate and surveil you. What you do with your Bitcoin is your business.
           </TextBlock>
 
           <TextBlock>
-            Use Wasabi Wallet to retain your individuality, regain your identity and ultimately, reclaim your privacy. We let you control what you reveal about your Bitcoin life.
+            Use Wasabi Wallet to retain your individuality, regain your identity and ultimately, reclaim your privacy. It enables you to control what you reveal about your Bitcoin life.
           </TextBlock>
         </StackPanel>
       </StackPanel>
@@ -80,7 +80,6 @@
               <TextBlock Text="Trustless" />
             </StackPanel>
           </Border>
-
 
           <Border Classes="benefit">
             <StackPanel Orientation="Horizontal" Spacing="10">
